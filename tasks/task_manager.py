@@ -35,3 +35,15 @@ class TaskManager:
             else:
                 updated.append(line)
         self.tasks_path.write_text("\n".join(updated) + "\n", encoding="utf-8")
+
+    def add_task(self, task: str) -> bool:
+        normalized = task.strip()
+        if not normalized:
+            return False
+        for line in self._load_lines():
+            stripped = line.strip()
+            if stripped == f"- [ ] {normalized}" or stripped.startswith(f"- [x] {normalized}"):
+                return False
+        with self.tasks_path.open("a", encoding="utf-8") as file:
+            file.write(f"- [ ] {normalized}\n")
+        return True

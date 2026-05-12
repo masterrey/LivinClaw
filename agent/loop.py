@@ -10,12 +10,12 @@ class AgentLoop:
         self.tick_minutes = tick_minutes
         self.logger = logging.getLogger(__name__)
 
-    def tick(self) -> None:
-        self.logger.info("Starting tick")
-        self.agent.tick()
+    def tick(self, reason: str = "scheduled") -> None:
+        self.logger.info("Starting tick (%s)", reason)
+        self.agent.tick(reason=reason)
         self.logger.info("Tick finished")
 
     def run_forever(self) -> None:
         while True:
-            self.tick()
+            self.tick(reason="scheduled")
             time.sleep(self.tick_minutes * 60)

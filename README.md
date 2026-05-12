@@ -10,6 +10,34 @@ MiniClaw Alive é um agente autônomo contínuo em Python com:
 - camada Guardian leve para homeostase operacional com inspeção de orçamento
 - proteções anti-degeneração (deduplicação de reflexões, detecção de loops)
 - arquitetura modular preparada para evolução futura com MCP
+- camada de interação Inbox/Outbox em Markdown para eventos humanos persistentes
+- ticks tipados (`scheduled`, `interactive`, `maintenance`, `recovery`) com lock de runtime
+
+## Filosofia de Interação Humana
+
+LivinClaw **não é um chatbot tradicional**.
+A interação humana entra como **eventos no loop autônomo**:
+
+1. humano escreve no Inbox
+2. runtime dispara tick interativo leve
+3. mensagens pendentes são processadas
+4. respostas persistem no Outbox
+
+Isso mantém o sistema local-first, determinístico e depurável.
+
+## Inbox / Outbox
+
+- `workspace/inbox.md`: eventos recebidos
+- `workspace/outbox.md`: respostas e eventos de saída
+
+Mensagens são serializadas em blocos determinísticos com cercas (`fenced blocks`) e metadata JSON.
+Conteúdo bruto do usuário é salvo de forma segura para não quebrar a estrutura Markdown.
+
+## Tick Interativo e Lock de Runtime
+
+- Apenas **um tick por vez** (`threading.Lock`) para evitar corrupção de estado.
+- Ticks interativos priorizam Inbox e evitam reflexão pesada/compactação global.
+- Ticks agendados continuam com execução completa de tarefas e manutenção cognitiva.
 
 ## Arquitetura de Memória
 

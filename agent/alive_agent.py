@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
+from enum import Enum
 from pathlib import Path
 
 from agent.anti_degeneration import AntiDegeneration
@@ -19,6 +21,7 @@ from agent.context_assembler import ContextAssembler
 from agent.planner import Planner
 from agent.reflection import ReflectionEngine
 from guardian.guardian import GuardianLayer
+from interaction.interaction_manager import InteractionManager
 from llm.llm_client import LLMClient
 from memory.long_memory import LongMemory
 from memory.memory_compactor import MemoryCompactor
@@ -28,12 +31,31 @@ from tasks.task_manager import TaskManager
 from tools.tool_registry import ToolRegistry
 
 
+class TickType(str, Enum):
+    SCHEDULED = "scheduled"
+    INTERACTIVE = "interactive"
+    RECOVERY = "recovery"
+    MAINTENANCE = "maintenance"
+
+    @classmethod
+    def from_reason(cls, reason: str | TickType) -> TickType:
+        if isinstance(reason, TickType):
+            return reason
+        normalized = (reason or "scheduled").strip().lower()
+        for tick_type in cls:
+            if tick_type.value == normalized:
+                return tick_type
+        return cls.SCHEDULED
+
+
 class AliveAgent:
     def __init__(self, config: dict, root_dir: Path) -> None:
         self.config = config
         self.root_dir = root_dir
         self.logger = logging.getLogger(__name__)
         self.tick_count = 0
+        self.tick_lock = threading.Lock()
+        self.last_tick_type: TickType | None = None
 
         tasks_path = root_dir / config["paths"]["tasks"]
         memory_dir = root_dir / config["paths"]["memory_dir"]
@@ -56,6 +78,7 @@ class AliveAgent:
         self.guardian = GuardianLayer(config["guardian"])
         self.memory_compactor = MemoryCompactor(self.long_memory, llm_client=self.llm_client)
         self.tools = ToolRegistry(self.long_memory)
+        self.interaction: InteractionManager | None = None
 
         # Cognitive budget
         self.budget = CognitiveBudget(config)
@@ -75,6 +98,13 @@ class AliveAgent:
 
         # Track which topics were loaded this tick (for per-topic compaction)
         self._loaded_topics_this_tick: list[str] = []
+
+        interaction_cfg = config.get("interaction", {})
+        if interaction_cfg.get("enabled", False):
+            self.interaction = InteractionManager(
+                inbox_path=root_dir / interaction_cfg.get("inbox_path", "workspace/inbox.md"),
+                outbox_path=root_dir / interaction_cfg.get("outbox_path", "workspace/outbox.md"),
+            )
 
     # ------------------------------------------------------------------
     # Task execution
@@ -172,9 +202,27 @@ class AliveAgent:
     # Main tick
     # ------------------------------------------------------------------
 
-    def tick(self) -> None:
+    def tick(self, reason: str | TickType = TickType.SCHEDULED) -> None:
+        tick_type = TickType.from_reason(reason)
+        if not self.tick_lock.acquire(blocking=False):
+            self.logger.info("Tick %s skipped because another tick is currently running", tick_type.value)
+            return
+        try:
+            if tick_type == TickType.INTERACTIVE:
+                self._run_interactive_tick()
+            elif tick_type == TickType.MAINTENANCE:
+                self._run_maintenance_tick()
+            elif tick_type == TickType.RECOVERY:
+                self._run_recovery_tick()
+            else:
+                self._run_scheduled_tick()
+        finally:
+            self.tick_lock.release()
+
+    def _run_scheduled_tick(self) -> None:
+        self.last_tick_type = TickType.SCHEDULED
         self.tick_count += 1
-        self.logger.info("Tick #%s started", self.tick_count)
+        self.logger.info("Tick #%s started (%s)", self.tick_count, TickType.SCHEDULED.value)
         self.budget.new_tick(self.tick_count)
         self._loaded_topics_this_tick = []
 
@@ -228,4 +276,130 @@ class AliveAgent:
             self.budget.record_compaction()
 
         self._guardian_checkpoint()
-        self.logger.info("Tick #%s finished", self.tick_count)
+        self.logger.info("Tick #%s finished (%s)", self.tick_count, TickType.SCHEDULED.value)
+
+    def _run_interactive_tick(self) -> None:
+        self.last_tick_type = TickType.INTERACTIVE
+        self.tick_count += 1
+        self.logger.info("Tick #%s started (%s)", self.tick_count, TickType.INTERACTIVE.value)
+        self.budget.new_tick(self.tick_count)
+        self._loaded_topics_this_tick = []
+        interaction_cfg = self.config.get("interaction", {})
+        if not interaction_cfg.get("enabled", False) or not self.interaction:
+            self.logger.info("Interactive tick skipped: interaction layer disabled")
+            return
+        if not interaction_cfg.get("interactive_tick_enabled", True):
+            self.logger.info("Interactive tick skipped by configuration")
+            return
+
+        interactive_cfg = self.config.get("interactive_tick", {})
+        queue_limit = int(interaction_cfg.get("max_queue_size", 100))
+        queue_report = self.guardian.check_interaction_queue(
+            pending_count=self.interaction.pending_count(),
+            max_queue_size=queue_limit,
+            payload_integrity_ok=self.interaction.payload_integrity_ok(),
+        )
+        if queue_report.action == "sanitize_payload":
+            self.logger.warning("Interactive inbox payload malformed; skipping tick processing")
+            return
+        if queue_report.action == "queue_overflow":
+            self.logger.warning("Interactive inbox overflow risk detected: %s", queue_report.reason)
+
+        pending = self.interaction.read_pending_messages(
+            limit=int(interactive_cfg.get("max_messages_per_tick", 3))
+        )
+        if not pending:
+            self.logger.info("Interactive tick finished with no pending inbox messages")
+            return
+
+        interactive_token_budget = int(interactive_cfg.get("max_tokens", 4000))
+        estimated_tokens = sum(max(1, len(msg.content) // 4) for msg in pending)
+        budget_report = self.guardian.check_cognitive_budget(
+            {
+                "tokens_this_tick": estimated_tokens,
+                "max_tokens_per_tick": interactive_token_budget,
+                "max_loaded_topics": int(interactive_cfg.get("max_loaded_topics", 2)),
+            },
+            loaded_topic_count=0,
+        )
+        if budget_report.action == "compress":
+            self.logger.warning("Interactive token budget pressure detected: %s", budget_report.reason)
+
+        max_loaded_topics = int(interactive_cfg.get("max_loaded_topics", 2))
+
+        for message in pending:
+            loaded_topics = self.memory_router.route(
+                task=message.content,
+                short_memory_text=self.short_memory.summary,
+            )
+            loaded_topics = dict(list(loaded_topics.items())[:max_loaded_topics])
+            for topic in loaded_topics:
+                if topic not in self._loaded_topics_this_tick:
+                    self._loaded_topics_this_tick.append(topic)
+
+            directive, payload = self.interaction.classify_directive(message.content)
+            response_text = self._handle_interaction_directive(directive, payload)
+            self.interaction.append_response(
+                content=response_text,
+                response_id=message.id,
+                metadata={"directive": directive, "reply_to": message.id},
+            )
+            self.interaction.mark_processed(message.id)
+
+            self.short_memory.add_observation(f"Human interaction ({directive}): {payload}", importance=0.8)
+            self.short_memory.add_action(response_text, importance=0.6)
+            self.long_memory.append_long_term(f"Interação processada ({directive}): {payload}")
+            self.long_memory.append_to_topic(response_text)
+
+        self.short_memory.summarize()
+        self._guardian_checkpoint()
+        self.logger.info("Tick #%s finished (%s)", self.tick_count, TickType.INTERACTIVE.value)
+
+    def _handle_interaction_directive(self, directive: str, payload: str) -> str:
+        cleaned = payload.strip()
+        if directive == "invalid" or not cleaned:
+            return "Mensagem inválida ignorada: conteúdo vazio."
+        if directive == "task":
+            created = self.task_manager.add_task(cleaned)
+            if created:
+                return f"Tarefa registrada para execução autônoma: {cleaned}"
+            return f"Tarefa já existente na fila: {cleaned}"
+        if directive == "note":
+            self.short_memory.add_observation(f"Nota humana: {cleaned}", importance=0.7)
+            self.long_memory.append_fact(f"Nota humana registrada: {cleaned}")
+            return "Nota registrada na memória de trabalho e memória longa."
+        if directive == "ask":
+            return self._build_ask_state_response(question=cleaned)
+        return f"Mensagem recebida e registrada para execução no loop autônomo: {cleaned}"
+
+    def _build_ask_state_response(self, question: str) -> str:
+        pending = self.task_manager.get_pending_tasks(limit=3)
+        pending_text = ", ".join(pending) if pending else "nenhuma"
+        last_tick = self.last_tick_type.value if self.last_tick_type else "none"
+        summary = self.short_memory.summary
+        return (
+            "Estado atual do runtime:\n"
+            f"- pergunta: {question}\n"
+            f"- tick_atual: {TickType.INTERACTIVE.value}\n"
+            f"- ultimo_tick: {last_tick}\n"
+            f"- tarefas_pendentes: {pending_text}\n"
+            f"- resumo_memoria_curta: {summary}"
+        )
+
+    def _run_maintenance_tick(self) -> None:
+        self.last_tick_type = TickType.MAINTENANCE
+        self.tick_count += 1
+        self.logger.info("Tick #%s started (%s)", self.tick_count, TickType.MAINTENANCE.value)
+        self.budget.new_tick(self.tick_count)
+        self._loaded_topics_this_tick = []
+        self._guardian_checkpoint()
+        self.logger.info("Tick #%s finished (%s)", self.tick_count, TickType.MAINTENANCE.value)
+
+    def _run_recovery_tick(self) -> None:
+        self.last_tick_type = TickType.RECOVERY
+        self.tick_count += 1
+        self.logger.info("Tick #%s started (%s)", self.tick_count, TickType.RECOVERY.value)
+        self.budget.new_tick(self.tick_count)
+        self._loaded_topics_this_tick = []
+        self._guardian_checkpoint()
+        self.logger.info("Tick #%s finished (%s)", self.tick_count, TickType.RECOVERY.value)
