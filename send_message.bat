@@ -15,14 +15,13 @@ if "%~1"=="" (
   exit /b 1
 )
 
-if not exist ".venv\Scripts\activate.bat" (
+if not exist ".venv\Scripts\python.exe" (
   echo ERROR: .venv was not found. Run setup.bat first.
   pause
   exit /b 1
 )
 
-call ".venv\Scripts\activate.bat"
-python -m scripts.send_message %*
+".venv\Scripts\python.exe" -m scripts.send_message %*
 
 echo.
 pause
