@@ -22,3 +22,20 @@ paths:
   tasks: "workspace/tasks.md"
   memory_dir: "workspace/memory"
   logs_dir: "workspace/logs"
+
+memory:
+  max_loaded_topics: 3
+  topic_memory_enabled: true
+  importance_decay: 0.95
+
+cognitive_budget:
+  max_tokens_per_tick: 12000
+  max_loaded_topics: 3
+  max_reflections_per_day: 20
+  reflection_cooldown_ticks: 3
+  max_compactions_per_hour: 2
+
+reflection:
+  enabled: true
+  cooldown_ticks: 3
+  max_per_day: 20

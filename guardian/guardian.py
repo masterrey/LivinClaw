@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+# guardian/guardian.py
+# Guardian lightweight homeostasis layer.
+# Extended to inspect cognitive budget usage and trigger mitigations when
+# loaded-topic count, estimated prompt size, or budget usage exceed limits.
+
+import logging
 from dataclasses import dataclass
 from typing import Callable
 
@@ -22,6 +28,7 @@ class GuardianLayer:
         self.token_estimator = TokenEstimator()
         self.prompt_compressor = PromptCompressor()
         self.json_repair = JsonRepair()
+        self.logger = logging.getLogger(__name__)
 
     def check_prompt(self, prompt: str, main_context_limit: int, safe_context_ratio: float) -> GuardianReport:
         tokens = self.token_estimator.estimate(prompt)
@@ -38,6 +45,47 @@ class GuardianLayer:
             action="compress",
             repaired_prompt=repaired,
         )
+
+    def check_cognitive_budget(self, budget_status: dict, loaded_topic_count: int) -> GuardianReport:
+        """Inspect cognitive budget usage and return a report with recommended action.
+
+        Triggers:
+        - ``compress`` when token usage exceeds 85 % of the per-tick budget.
+        - ``prune_branches`` when more than ``max_loaded_topics`` branches are loaded.
+        - ``none`` when everything is within limits.
+        """
+        max_tokens = budget_status.get("max_tokens_per_tick", 12000)
+        used_tokens = budget_status.get("tokens_this_tick", 0)
+        token_ratio = used_tokens / max_tokens if max_tokens else 0.0
+
+        if token_ratio > 0.85:
+            self.logger.warning(
+                "Guardian: token budget at %.0f%% (%d/%d) — recommending prompt compression",
+                token_ratio * 100,
+                used_tokens,
+                max_tokens,
+            )
+            return GuardianReport(
+                ok=False,
+                reason=f"Token usage at {token_ratio * 100:.0f}% of budget",
+                action="compress",
+            )
+
+        max_topics = budget_status.get("max_loaded_topics", 3)
+        # max_loaded_topics is on the budget object; fall back to a reasonable default
+        if loaded_topic_count > max(3, max_topics):
+            self.logger.warning(
+                "Guardian: %d topic branches loaded (max %d) — recommending branch pruning",
+                loaded_topic_count,
+                max_topics,
+            )
+            return GuardianReport(
+                ok=False,
+                reason=f"{loaded_topic_count} branches loaded, exceeds limit {max_topics}",
+                action="prune_branches",
+            )
+
+        return GuardianReport(ok=True, reason="Cognitive budget within limits", action="none")
 
     def validate_json(self, payload: str) -> tuple[bool, object | None, GuardianReport]:
         ok, parsed = self.json_repair.repair(payload)
