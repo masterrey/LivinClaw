@@ -215,13 +215,17 @@ class AliveAgent:
 
         self.short_memory.summarize()
 
-        # Per-topic compaction (only for topics that were active this tick)
-        if self.budget.can_compact() and self._loaded_topics_this_tick:
+        # Per-topic compaction (only for topics that were active this tick).
+        # No compaction of any kind runs when the hourly budget is exhausted.
+        if not self.budget.can_compact():
+            self.logger.info("Compaction skipped (hourly budget exhausted)")
+        elif self._loaded_topics_this_tick:
             self.memory_compactor.compact_topics_if_needed(self._loaded_topics_this_tick)
             self.budget.record_compaction()
         else:
-            # Fall back to legacy flat-file compaction
+            # Fall back to legacy flat-file compaction when no topics were loaded.
             self.memory_compactor.compact_if_needed()
+            self.budget.record_compaction()
 
         self._guardian_checkpoint()
         self.logger.info("Tick #%s finished", self.tick_count)

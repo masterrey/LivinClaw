@@ -353,5 +353,87 @@ class AliveAgentDuplicateTaskTests(unittest.TestCase):
             self.assertEqual([], agent.task_manager.get_pending_tasks())
 
 
+class CompactionBudgetEnforcementTests(unittest.TestCase):
+    """Verify that no compaction runs when the hourly compaction budget is exhausted."""
+
+    def _make_agent_config(self, root: Path) -> dict:
+        return {
+            "agent": {
+                "max_tasks_per_tick": 3,
+                "reflection_enabled": False,
+                "max_short_summary_chars": 500,
+            },
+            "guardian": {
+                "enabled": False,
+                "check_every_ticks": 6,
+                "max_guardian_tokens": 3000,
+                "main_context_limit": 16000,
+                "safe_context_ratio": 0.7,
+            },
+            "model": {
+                "base_url": "http://127.0.0.1:1234/v1",
+                "model": "test-model",
+                "temperature": 0.3,
+            },
+            "paths": {
+                "tasks": "workspace/tasks.md",
+                "memory_dir": "workspace/memory",
+            },
+            "memory": {"importance_decay": 0.95},
+            "cognitive_budget": {
+                "max_tokens_per_tick": 1000,
+                "max_loaded_topics": 3,
+                "max_reflections_per_day": 5,
+                "reflection_cooldown_ticks": 2,
+                "max_compactions_per_hour": 1,
+            },
+            "reflection": {"enabled": False},
+        }
+
+    def test_no_compaction_when_budget_exhausted(self) -> None:
+        from agent.alive_agent import AliveAgent
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            tasks_file = root / "workspace" / "tasks.md"
+            tasks_file.parent.mkdir(parents=True, exist_ok=True)
+            tasks_file.write_text("", encoding="utf-8")
+
+            agent = AliveAgent(config=self._make_agent_config(root), root_dir=root)
+
+            # Exhaust the compaction budget before the tick
+            agent.budget.record_compaction()  # max_compactions_per_hour == 1
+            self.assertFalse(agent.budget.can_compact())
+
+            with patch.object(agent.memory_compactor, "compact_if_needed") as mock_legacy, \
+                 patch.object(agent.memory_compactor, "compact_topics_if_needed") as mock_topic:
+                agent.tick()
+
+            mock_legacy.assert_not_called()
+            mock_topic.assert_not_called()
+
+    def test_legacy_compaction_runs_when_no_topics_loaded(self) -> None:
+        from agent.alive_agent import AliveAgent
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            tasks_file = root / "workspace" / "tasks.md"
+            tasks_file.parent.mkdir(parents=True, exist_ok=True)
+            tasks_file.write_text("", encoding="utf-8")
+
+            agent = AliveAgent(config=self._make_agent_config(root), root_dir=root)
+            self.assertTrue(agent.budget.can_compact())
+
+            with patch.object(agent.memory_compactor, "compact_if_needed") as mock_legacy, \
+                 patch.object(agent.memory_compactor, "compact_topics_if_needed") as mock_topic:
+                agent.tick()
+
+            mock_legacy.assert_called_once()
+            mock_topic.assert_not_called()
+            self.assertFalse(agent.budget.can_compact())
+
+
 if __name__ == "__main__":
     unittest.main()
