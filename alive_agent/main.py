@@ -33,7 +33,8 @@ def setup_logging(logs_dir: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="MiniClaw Alive")
     parser.add_argument("--config", default="config.yaml", help="Path to config YAML")
-    parser.add_argument("--once", action="store_true", help="Run a single tick and exit")
+    parser.add_argument("--once", action="store_true", help="Run a single scheduled tick and exit")
+    parser.add_argument("--interactive", action="store_true", help="Run a single interactive tick and exit")
     args = parser.parse_args()
 
     root = Path.cwd()
@@ -45,6 +46,10 @@ def main() -> None:
 
     if args.once:
         loop.tick()
+        return
+
+    if args.interactive:
+        loop.tick(reason="interactive")
         return
 
     loop.run_forever()

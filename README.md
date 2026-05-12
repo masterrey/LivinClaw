@@ -18,7 +18,7 @@ MiniClaw Alive é um agente autônomo contínuo em Python com:
 LivinClaw **não é um chatbot tradicional**.
 A interação humana entra como **eventos no loop autônomo**:
 
-1. humano escreve no Inbox
+1. humano envia mensagem via `send_message.bat` (ou `scripts/send_message.py`)
 2. runtime dispara tick interativo leve
 3. mensagens pendentes são processadas
 4. respostas persistem no Outbox
@@ -27,8 +27,12 @@ Isso mantém o sistema local-first, determinístico e depurável.
 
 ## Inbox / Outbox
 
-- `workspace/inbox.md`: eventos recebidos
-- `workspace/outbox.md`: respostas e eventos de saída
+- `workspace/inbox.md`: armazenamento observável de eventos recebidos
+- `workspace/outbox.md`: armazenamento observável de respostas e eventos de saída
+
+Esses arquivos são **armazenamento estruturado**, não arquivos para edição manual.
+Use `send_message.bat` (Windows) ou `scripts/send_message.py` para escrever no inbox de forma segura.
+Edição manual direta pode quebrar o formato de blocos e fazer mensagens serem ignoradas silenciosamente.
 
 Mensagens são serializadas em blocos determinísticos com cercas (`fenced blocks`) e metadata JSON.
 Conteúdo bruto do usuário é salvo de forma segura para não quebrar a estrutura Markdown.
@@ -180,6 +184,47 @@ Para execução contínua:
 ```bash
 python alive_agent/main.py
 ```
+
+## Quick Start on Windows
+
+1. Run setup:
+
+```bat
+setup.bat
+```
+
+2. Run tests:
+
+```bat
+run_tests.bat
+```
+
+3. Send a message and run an interactive tick:
+
+```bat
+interact.bat "@task Create a short summary of the current agent architecture"
+```
+
+Or separately:
+
+```bat
+send_message.bat "@ask What is your current status?"
+run_interactive.bat
+```
+
+4. Run one scheduled tick:
+
+```bat
+run_once.bat
+```
+
+5. Run continuous mode:
+
+```bat
+run_alive.bat
+```
+
+See `FIRST_RUN.md` for full setup, LM Studio checks, and first interaction steps.
 
 ## Testes
 
