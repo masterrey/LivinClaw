@@ -102,6 +102,21 @@ class InteractionManagerTests(unittest.TestCase):
             self.assertEqual(first.id, second.id)
             self.assertEqual(1, manager.pending_count())
 
+    def test_inbox_parsing_ignores_msg_headers_inside_fenced_content(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manager = InteractionManager(root / "workspace/inbox.md", root / "workspace/outbox.md")
+            content = "line before\n## MSG_9999\nline after"
+            first = manager.append_user_message(content)
+            second = manager.append_user_message("@ask status")
+
+            pending = manager.read_pending_messages()
+            self.assertEqual(2, len(pending))
+            self.assertEqual(content, pending[0].content)
+            self.assertEqual("MSG_0001", first.id)
+            self.assertEqual("MSG_0002", second.id)
+            self.assertTrue(manager.payload_integrity_ok())
+
 
 class InteractiveTickTests(unittest.TestCase):
     def test_interactive_tick_dispatch_and_processing(self) -> None:

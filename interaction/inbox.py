@@ -8,6 +8,7 @@ from pathlib import Path
 from interaction.message import InteractionMessage
 
 _MESSAGE_HEADER_RE = re.compile(r"^## MSG_(\d+)$", re.MULTILINE)
+_MESSAGE_ID_RE = re.compile(r"^MSG_(\d+)$")
 
 
 def _max_run(text: str, char: str) -> int:
@@ -53,7 +54,20 @@ def _serialize_message(message: InteractionMessage) -> str:
 
 def _extract_blocks(raw: str) -> list[str]:
     lines = raw.splitlines()
-    starts = [i for i, line in enumerate(lines) if line.startswith("## MSG_")]
+    starts: list[int] = []
+    fence_delimiter: str | None = None
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if fence_delimiter is None:
+            match = re.match(r"^(`{3,})(?:\S*)?$", stripped)
+            if match:
+                fence_delimiter = match.group(1)
+                continue
+            if _MESSAGE_HEADER_RE.match(stripped):
+                starts.append(i)
+            continue
+        if stripped == fence_delimiter:
+            fence_delimiter = None
     if not starts:
         return []
     starts.append(len(lines))
@@ -139,8 +153,11 @@ class InboxStore:
         return messages
 
     def next_message_id(self) -> str:
-        raw = self.path.read_text(encoding="utf-8")
-        numbers = [int(m.group(1)) for m in _MESSAGE_HEADER_RE.finditer(raw)]
+        numbers = []
+        for message in self.load_messages():
+            match = _MESSAGE_ID_RE.match(message.id)
+            if match:
+                numbers.append(int(match.group(1)))
         nxt = max(numbers, default=0) + 1
         return f"MSG_{nxt:04d}"
 

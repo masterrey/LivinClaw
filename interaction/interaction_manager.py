@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, UTC
 from pathlib import Path
 
-from interaction.inbox import InboxStore
+from interaction.inbox import InboxStore, _extract_blocks
 from interaction.message import InteractionMessage, InteractionResponse
 from interaction.outbox import OutboxStore
 
@@ -93,6 +93,6 @@ class InteractionManager:
 
     def payload_integrity_ok(self) -> bool:
         raw = self.inbox.path.read_text(encoding="utf-8")
-        header_count = raw.count("## MSG_")
+        header_count = len(_extract_blocks(raw))
         parsed_count = len(self.inbox.load_messages())
         return header_count == parsed_count
