@@ -54,3 +54,14 @@ interactive_tick:
   max_tokens: 4000
   prioritize_inbox: true
   max_messages_per_tick: 3
+
+chat_context:
+  enabled: true
+  max_prompt_chars: 6000
+  max_short_memory_chars: 1200
+  max_topic_chars: 2000
+  max_pending_tasks: 5
+  max_recent_observations: 5
+  max_recent_actions: 5
+  max_loaded_topics: 2
+  update_short_memory: true

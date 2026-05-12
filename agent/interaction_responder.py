@@ -4,7 +4,8 @@ from __future__ import annotations
 # Owns the interactive response decision logic.
 # Classifies incoming interaction directives and generates appropriate responses.
 # Greeting and status responses are deterministic (no LLM).
-# Conversational questions use the LLM client with a compact prompt.
+# Conversational questions use InteractionContextBuilder to assemble managed context
+# and then call the LLM with that context as the prompt.
 
 import logging
 import re
@@ -97,15 +98,69 @@ _PORTUGUESE_MARKERS: frozenset[str] = frozenset(
     }
 )
 
-# Compact system prompt used for conversational LLM calls.
-_SYSTEM_PROMPT = (
-    "You are LivinClaw, a local alive agent runtime.\n"
-    "Answer the user's message naturally and concisely.\n"
-    "Do not pretend to have capabilities that are not implemented.\n"
-    "You are not a normal chatbot; you operate through inbox/outbox, ticks, tasks, and memory.\n"
-    "If the user asks about your architecture, explain the current runtime honestly.\n"
-    "If information is unavailable, say it is not available yet."
-)
+from agent.interaction_context import InteractionContextBuilder, InteractionContext
+
+
+def _build_prompt_from_context(ctx: InteractionContext) -> str:
+    """Construct a managed LLM prompt from an InteractionContext."""
+    lines: list[str] = [
+        "You are LivinClaw, a local alive agent runtime.",
+        "",
+        "Identity:",
+        "- You are not a normal chatbot.",
+        "- You are a human-facing conversational control layer for an alive autonomous runtime.",
+        "- You operate through inbox/outbox, ticks, short memory, long-term topic memory, tasks, and Guardian constraints.",
+        "- Be natural and useful.",
+        "- Use the same language as the user when possible.",
+        "- Do not invent runtime state.",
+        "- Do not claim tools were executed unless they were.",
+        "- If the user asks for action, propose a task or controlled action path.",
+        "- If context is unavailable, say it is not available yet.",
+        "",
+        "Current interaction context:",
+        f"- tick type: {ctx.tick_type}",
+        f"- model: {ctx.model_name}",
+        f"- pending tasks: {len(ctx.pending_tasks)}",
+    ]
+
+    if ctx.budget_summary:
+        tokens_used = ctx.budget_summary.get("tokens_this_tick", "?")
+        tokens_max = ctx.budget_summary.get("max_tokens_per_tick", "?")
+        lines.append(f"- budget: {tokens_used}/{tokens_max} tokens used this tick")
+
+    lines += [
+        "",
+        "Short memory / RAM:",
+        ctx.short_memory_summary or "Not available yet",
+    ]
+
+    if ctx.recent_observations:
+        lines += ["", "Recent observations:"]
+        lines += [f"- {obs}" for obs in ctx.recent_observations]
+
+    if ctx.recent_actions:
+        lines += ["", "Recent actions:"]
+        lines += [f"- {act}" for act in ctx.recent_actions]
+
+    if ctx.pending_tasks:
+        lines += ["", "Pending tasks:"]
+        lines += [f"- {t}" for t in ctx.pending_tasks]
+
+    if ctx.routed_memory:
+        lines += ["", "Relevant long-term memory topics:"]
+        for topic, content in ctx.routed_memory.items():
+            lines += [f"### {topic}", content[:500]]
+
+    lines += [
+        "",
+        "Action/tool policy:",
+        ctx.action_policy,
+        "",
+        "User message:",
+        ctx.user_message,
+    ]
+
+    return "\n".join(lines)
 
 
 class InteractionResponder:
@@ -113,8 +168,8 @@ class InteractionResponder:
 
     Supported directive types (mirrors InteractionManager.classify_directive output):
         - ``"status"``   → deterministic runtime status (no LLM)
-        - ``"ask"``      → conversational answer via LLM (with fallback)
-        - ``"message"``  → heuristic sub-classification: greeting / status / freeform
+        - ``"ask"``      → conversational answer via LLM using managed context
+        - ``"message"``  → heuristic sub-classification: greeting / status / complex / freeform
         - anything else  → fallback acknowledgement
 
     The caller (alive_agent) still handles ``"task"`` and ``"note"`` directives
@@ -127,11 +182,13 @@ class InteractionResponder:
         task_manager=None,
         short_memory=None,
         model_name: str = "",
+        context_builder: InteractionContextBuilder | None = None,
     ) -> None:
         self.llm_client = llm_client
         self.task_manager = task_manager
         self.short_memory = short_memory
         self.model_name = model_name
+        self.context_builder = context_builder
         self.logger = logging.getLogger(__name__)
 
     # ------------------------------------------------------------------
@@ -185,7 +242,27 @@ class InteractionResponder:
             return "greeting"
         if self._is_status_request(content):
             return "status"
+        if self._is_complex_question(content):
+            return "complex"
         return "freeform"
+
+    @staticmethod
+    def _is_complex_question(content: str) -> bool:
+        """Return True for messages that are obviously substantive questions.
+
+        These should be routed to the managed conversational path even without @ask.
+        """
+        lower = content.strip().lower()
+        complex_patterns = [
+            re.compile(r"\b(explain|explique|me explique)\b", re.IGNORECASE),
+            re.compile(r"\b(how|como)\s+(do\s+you|you|você|voce)\b", re.IGNORECASE),
+            re.compile(r"\b(what\s+can\s+you|o\s+que\s+você\s+pode)\b", re.IGNORECASE),
+            re.compile(r"\b(arquitetura|architecture|funciona|work)\b", re.IGNORECASE),
+            re.compile(r"\b(qual\s+a\s+diferença|what.s\s+the\s+difference)\b", re.IGNORECASE),
+            re.compile(r"\b(o\s+que\s+você\s+lembra|what\s+do\s+you\s+remember)\b", re.IGNORECASE),
+            re.compile(r"\b(como\s+você\s+funciona|how\s+do\s+you\s+work)\b", re.IGNORECASE),
+        ]
+        return any(p.search(lower) for p in complex_patterns)
 
     # ------------------------------------------------------------------
     # Response builders
@@ -232,27 +309,39 @@ class InteractionResponder:
         if not self.llm_client:
             return self._llm_fallback(content)
 
-        tick_type = ctx.get("tick_type", "interactive")
-        pending_count = len(ctx.get("pending_tasks", []))
-        memory_summary: str = ctx.get("memory_summary", "") or ""
-
-        context_note = (
-            f"Current context: tick={tick_type}, "
-            f"pending_tasks={pending_count}, "
-            f"memory_summary={memory_summary[:200] if memory_summary else 'none'}"
-        )
-        system_msg = _SYSTEM_PROMPT + "\n" + context_note
+        # Build managed interaction context
+        if self.context_builder is not None:
+            interaction_ctx = self.context_builder.build_for_message(content, ctx)
+            prompt = _build_prompt_from_context(interaction_ctx)
+        else:
+            # Fallback: minimal inline prompt when no context builder is available
+            tick_type = ctx.get("tick_type", "interactive")
+            pending_count = len(ctx.get("pending_tasks", []))
+            memory_summary: str = ctx.get("memory_summary", "") or ""
+            prompt = (
+                "You are LivinClaw, a local alive agent runtime.\n"
+                "Answer the user's message naturally and concisely.\n"
+                "Do not pretend to have capabilities that are not implemented.\n"
+                "You are not a normal chatbot; you operate through inbox/outbox, ticks, tasks, and memory.\n"
+                "If the user asks about your architecture, explain the current runtime honestly.\n"
+                "If information is unavailable, say it is not available yet.\n"
+                f"Current context: tick={tick_type}, "
+                f"pending_tasks={pending_count}, "
+                f"memory_summary={memory_summary[:200] if memory_summary else 'none'}"
+            )
 
         try:
             reply = self.llm_client.chat(
                 messages=[
-                    {"role": "system", "content": system_msg},
+                    {"role": "system", "content": prompt},
                     {"role": "user", "content": content},
                 ],
                 temperature=0.4,
                 max_tokens=500,
             )
             if reply and reply.strip():
+                if self.context_builder is not None:
+                    self.context_builder.maybe_update_short_memory(content, reply)
                 return reply.strip()
         except Exception as exc:
             self.logger.warning("LLM call failed during interactive tick: %s", exc)
@@ -280,6 +369,8 @@ class InteractionResponder:
             return self._respond_greeting(is_pt)
         if category == "status":
             return self._respond_status(ctx)
+        if category == "complex":
+            return self._respond_conversational(content, ctx)
         return self._respond_freeform(content, is_pt)
 
     def _respond_fallback(self, content: str) -> str:
