@@ -294,9 +294,8 @@ class InteractionResponder:
             "Use @task, @note, @status, or @ask to be more specific."
         )
 
-    @staticmethod
-    def _llm_fallback(content: str) -> str:
-        if InteractionResponder._is_portuguese(content):
+    def _llm_fallback(self, content: str) -> str:
+        if self._is_portuguese(content):
             return (
                 "Recebi sua pergunta, mas não consegui chamar o modelo local agora. "
                 "Posso registrar isso como tarefa ou você pode verificar se o LM Studio está ativo."
