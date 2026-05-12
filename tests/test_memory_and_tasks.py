@@ -257,5 +257,24 @@ class ContextAssemblerTests(unittest.TestCase):
         self.assertLessEqual(len(prompt), 50 * 4 + 100)  # allow small overshoot for clip marker
 
 
+class PlannerAndReflectionContextWiringTests(unittest.TestCase):
+    def test_planner_marks_context_aware_reason_when_context_present(self) -> None:
+        from agent.planner import Planner
+        planner = Planner()
+        plan = planner.plan_for_task("do task", context_prompt="## Relevant Memory\nx")
+        self.assertIn("routed memory context", plan.reason)
+
+    def test_reflection_fallback_mentions_routed_context(self) -> None:
+        from agent.reflection import ReflectionEngine
+        reflection = ReflectionEngine(llm_client=None)
+        text = reflection.reflect(
+            short_summary="summary",
+            recent_actions=["a1"],
+            recent_observations=["o1"],
+            routed_context="## Relevant Memory\nguardian incident",
+        )
+        self.assertIn("com contexto roteado", text)
+
+
 if __name__ == "__main__":
     unittest.main()

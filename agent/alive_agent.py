@@ -80,8 +80,13 @@ class AliveAgent:
     # Task execution
     # ------------------------------------------------------------------
 
-    def _execute_task(self, task: str) -> str:
-        plan = self.planner.plan_for_task(task)
+    def _execute_task(self, task: str, loaded_topics: dict[str, str]) -> str:
+        assembled_context = self.context_assembler.assemble(
+            task=task,
+            short_memory_export=self.short_memory.export(),
+            loaded_topics=loaded_topics,
+        )
+        plan = self.planner.plan_for_task(task, context_prompt=assembled_context)
         result = f"Task executada: {plan.task}. Motivo: {plan.reason}."
         self.short_memory.add_action(result, importance=0.7)
         self.long_memory.append_decision(result)
@@ -99,7 +104,7 @@ class AliveAgent:
         agent_fallback = self.config["agent"].get("reflection_enabled", True)
         return reflection_cfg.get("enabled", agent_fallback)
 
-    def _run_reflection(self) -> None:
+    def _run_reflection(self, loaded_topics: dict[str, str]) -> None:
         if not self._is_reflection_enabled():
             return
 
@@ -107,10 +112,16 @@ class AliveAgent:
             self.logger.info("Reflection skipped (cooldown or daily limit)")
             return
 
+        assembled_context = self.context_assembler.assemble(
+            task="idle reflection",
+            short_memory_export=self.short_memory.export(),
+            loaded_topics=loaded_topics,
+        )
         reflection_text = self.reflection.reflect(
             short_summary=self.short_memory.summary,
             recent_actions=list(self.short_memory.actions),
             recent_observations=list(self.short_memory.observations),
+            routed_context=assembled_context,
         )
 
         if self.anti_degen.should_suppress_reflection(reflection_text):
@@ -185,7 +196,7 @@ class AliveAgent:
                     self.logger.info("Task skipped (duplicate detected): %s", task)
                     continue
                 self.anti_degen.record_task(task)
-                result = self._execute_task(task)
+                result = self._execute_task(task, loaded_topics=loaded_topics)
                 self.task_manager.mark_done(task, result)
                 self.short_memory.add_observation(result, importance=0.6)
                 self.long_memory.append_long_term(f"Task concluída: {task}")
@@ -199,7 +210,7 @@ class AliveAgent:
             self._loaded_topics_this_tick = list(loaded_topics.keys())
 
             if self.config["agent"].get("reflection_enabled", True):
-                self._run_reflection()
+                self._run_reflection(loaded_topics=loaded_topics)
 
         self.short_memory.summarize()
 
