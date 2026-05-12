@@ -108,6 +108,25 @@ The workspace remains observable for debugging and inspection:
 run_tests.bat
 ```
 
+## Optional: Visual Dashboard
+
+Install optional UI dependency:
+
+```bat
+setup_ui.bat
+```
+
+Run local dashboard:
+
+```bat
+run_dashboard.bat
+```
+
+Use the Chat tab to send a message and run an interactive tick.
+Use Runtime/Tasks/Memory/Inbox-Outbox/Logs tabs to observe the alive agent state.
+
+The dashboard is local-only and does not bypass runtime flow.
+
 ## 9) Troubleshooting
 
 - **Python not found**: reinstall Python and enable PATH integration.
