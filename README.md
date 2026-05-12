@@ -34,6 +34,10 @@ Esses arquivos são **armazenamento estruturado**, não arquivos para edição m
 Use `send_message.bat` (Windows) ou `scripts/send_message.py` para escrever no inbox de forma segura.
 Edição manual direta pode quebrar o formato de blocos e fazer mensagens serem ignoradas silenciosamente.
 
+O console funciona como a superfície de interação local: ele envia a mensagem para
+o Inbox, aciona um tick interativo e mostra a resposta mais recente do Outbox.
+Inbox/Outbox continuam sendo o armazenamento persistente e o estado observável do runtime.
+
 Mensagens são serializadas em blocos determinísticos com cercas (`fenced blocks`) e metadata JSON.
 Conteúdo bruto do usuário é salvo de forma segura para não quebrar a estrutura Markdown.
 
@@ -202,7 +206,13 @@ run_tests.bat
 3. Send a message and run an interactive tick:
 
 ```bat
-interact.bat "@task Create a short summary of the current agent architecture"
+interact.bat "@ask Tudo certo?"
+```
+
+4. Start the local console loop:
+
+```bat
+chat.bat
 ```
 
 Or separately:
@@ -210,21 +220,45 @@ Or separately:
 ```bat
 send_message.bat "@ask What is your current status?"
 run_interactive.bat
+python scripts\show_latest_outbox.py
 ```
 
-4. Run one scheduled tick:
+5. Run one scheduled tick:
 
 ```bat
 run_once.bat
 ```
 
-5. Run continuous mode:
+6. Run continuous mode:
 
 ```bat
 run_alive.bat
 ```
 
 See `FIRST_RUN.md` for full setup, LM Studio checks, and first interaction steps.
+
+## Local Console Interaction
+
+One-shot local interaction:
+
+```bat
+interact.bat "@ask Tudo certo?"
+```
+
+Continuous local console:
+
+```bat
+chat.bat
+```
+
+Fluxo preservado:
+
+1. console envia a mensagem para o Inbox
+2. o runtime executa um tick interativo
+3. a resposta é persistida no Outbox
+4. o console mostra a resposta mais recente
+
+Isso melhora a percepção de responsividade sem virar web UI, API server ou chatbot direto.
 
 ## Testes
 

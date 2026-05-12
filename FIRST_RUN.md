@@ -52,14 +52,32 @@ run_alive.bat
 
 Stop with `Ctrl+C` in the terminal window.
 
-## 7) Send messages and run an interactive tick
+## 7) First local interaction
 
 `workspace/inbox.md` and `workspace/outbox.md` are **structured storage files** that
 the agent runtime reads and writes via a safe serialization format. Do not edit them
 manually — any free-form text you add can break the block format and cause messages
 to be silently skipped.
 
-Use `send_message.bat` to append messages safely:
+Recommended first interaction:
+
+```bat
+interact.bat "@ask Tudo certo?"
+```
+
+This keeps the architecture intact:
+
+- console is the local interaction surface
+- Inbox/Outbox remain the persistent storage
+- the response still comes from an interactive tick
+
+For a continuous terminal loop:
+
+```bat
+chat.bat
+```
+
+If you want the manual step-by-step flow, use `send_message.bat` to append messages safely:
 
 ```bat
 send_message.bat "@task Create a short summary of the current agent architecture"
@@ -71,15 +89,10 @@ Then run one interactive tick to process pending inbox messages:
 
 ```bat
 run_interactive.bat
+python scripts\show_latest_outbox.py
 ```
 
-Or use `interact.bat` to send a message and run the tick in one step:
-
-```bat
-interact.bat "@task Create a short summary of the current agent architecture"
-```
-
-After the tick completes, inspect the workspace to see results:
+The workspace remains observable for debugging and inspection:
 
 | File / Folder | Purpose |
 |---|---|
@@ -101,5 +114,5 @@ run_tests.bat
 - **LM Studio connection errors**: confirm server is running on `127.0.0.1:1234`.
 - **Wrong model name**: update `model.model` in `config.yaml`.
 - **Missing .venv error in run scripts**: run `setup.bat` first.
-- **No output in outbox**: verify inbox has a pending message (`send_message.bat`) and run `run_interactive.bat` or `run_once.bat`.
+- **No response shown yet**: verify inbox has a pending message (`send_message.bat`) and run `interact.bat`, `chat.bat`, or `run_interactive.bat`.
 - **Do not edit inbox.md manually**: use `send_message.bat` to preserve the structured block format.
