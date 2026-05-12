@@ -19,6 +19,11 @@ if not exist ".venv\Scripts\activate.bat" (
 )
 
 call ".venv\Scripts\activate.bat"
+if errorlevel 1 (
+  echo ERROR: Could not activate .venv
+  pause
+  exit /b 1
+)
 
 echo Sending message to inbox...
 python -m scripts.send_message %*
@@ -30,8 +35,13 @@ if errorlevel 1 (
 
 echo Running interactive tick...
 python alive_agent/main.py --interactive
+if errorlevel 1 (
+  echo ERROR: Interactive tick failed.
+  pause
+  exit /b 1
+)
 
 echo.
-echo Done. Inspect workspace\outbox.md for responses.
+python scripts\show_latest_outbox.py
 pause
 endlocal
