@@ -94,8 +94,8 @@ def _parse_block(block: str) -> InteractionMessage | None:
     if metadata_idx + 2 >= len(lines) or content_idx + 2 >= len(lines):
         return None
 
-    metadata_fence = lines[metadata_idx + 1].strip()
-    metadata_match = _FENCE_OPEN_RE.match(metadata_fence)
+    metadata_fence_line = lines[metadata_idx + 1].strip()
+    metadata_match = _FENCE_OPEN_RE.match(metadata_fence_line)
     if metadata_match is None:
         return None
     metadata_open = metadata_match.group(1)
@@ -107,8 +107,8 @@ def _parse_block(block: str) -> InteractionMessage | None:
     if metadata_close_idx is None:
         return None
 
-    content_fence = lines[content_idx + 1].strip()
-    content_match = _FENCE_OPEN_RE.match(content_fence)
+    content_fence_line = lines[content_idx + 1].strip()
+    content_match = _FENCE_OPEN_RE.match(content_fence_line)
     if content_match is None:
         return None
     content_open = content_match.group(1)
