@@ -219,12 +219,12 @@ class AliveAgent:
         # No compaction of any kind runs when the hourly budget is exhausted.
         if not self.budget.can_compact():
             self.logger.info("Compaction skipped (hourly budget exhausted)")
-        elif self._loaded_topics_this_tick:
-            self.memory_compactor.compact_topics_if_needed(self._loaded_topics_this_tick)
-            self.budget.record_compaction()
         else:
-            # Fall back to legacy flat-file compaction when no topics were loaded.
-            self.memory_compactor.compact_if_needed()
+            if self._loaded_topics_this_tick:
+                self.memory_compactor.compact_topics_if_needed(self._loaded_topics_this_tick)
+            else:
+                # Fall back to legacy flat-file compaction when no topics were loaded.
+                self.memory_compactor.compact_if_needed()
             self.budget.record_compaction()
 
         self._guardian_checkpoint()
