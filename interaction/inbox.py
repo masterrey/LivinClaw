@@ -101,7 +101,7 @@ def _parse_block(block: str) -> InteractionMessage | None:
     metadata_open = metadata_match.group(1)
     metadata_close_idx = None
     for idx in range(metadata_idx + 2, len(lines)):
-        if lines[idx] == metadata_open:
+        if lines[idx].strip() == metadata_open:
             metadata_close_idx = idx
             break
     if metadata_close_idx is None:
@@ -114,7 +114,7 @@ def _parse_block(block: str) -> InteractionMessage | None:
     content_open = content_match.group(1)
     content_close_idx = None
     for idx in range(content_idx + 2, len(lines)):
-        if lines[idx] == content_open:
+        if lines[idx].strip() == content_open:
             content_close_idx = idx
             break
     if content_close_idx is None:
