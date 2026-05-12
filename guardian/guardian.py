@@ -97,6 +97,26 @@ class GuardianLayer:
             return True, parsed, GuardianReport(ok=True, reason="JSON valid/repaired", action="repair_json")
         return False, None, GuardianReport(ok=False, reason="Invalid JSON", action="retry")
 
+    def check_interaction_queue(
+        self,
+        pending_count: int,
+        max_queue_size: int,
+        payload_integrity_ok: bool,
+    ) -> GuardianReport:
+        if not payload_integrity_ok:
+            return GuardianReport(
+                ok=False,
+                reason="Malformed interaction payload detected in inbox",
+                action="sanitize_payload",
+            )
+        if pending_count > max_queue_size:
+            return GuardianReport(
+                ok=False,
+                reason=f"Interaction queue overflow risk ({pending_count}/{max_queue_size})",
+                action="queue_overflow",
+            )
+        return GuardianReport(ok=True, reason="Interaction queue within limits", action="none")
+
     def run_with_recovery(self, call: Callable[[], str], retries: int = 2) -> tuple[bool, str]:
         for attempt in range(retries + 1):
             response = call()

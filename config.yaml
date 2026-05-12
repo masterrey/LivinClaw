@@ -39,3 +39,18 @@ reflection:
   enabled: true
   cooldown_ticks: 3
   max_per_day: 20
+
+interaction:
+  enabled: true
+  interactive_tick_enabled: true
+  inbox_path: "workspace/inbox.md"
+  outbox_path: "workspace/outbox.md"
+  max_queue_size: 100
+
+interactive_tick:
+  reflection_enabled: false
+  memory_compaction_enabled: false
+  max_loaded_topics: 2
+  max_tokens: 4000
+  prioritize_inbox: true
+  max_messages_per_tick: 3
