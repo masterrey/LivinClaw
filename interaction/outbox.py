@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from interaction.inbox import _extract_blocks, _parse_block, _serialize_message
+from interaction.markdown_codec import _extract_blocks, _parse_block, _serialize_message
 from interaction.message import InteractionMessage, InteractionResponse
 
 
