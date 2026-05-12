@@ -4,7 +4,7 @@ from pathlib import Path
 
 import yaml
 
-from interaction.markdown_codec import _extract_blocks, _parse_block
+from interaction.markdown_codec import extract_blocks, parse_messages
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -80,12 +80,8 @@ def _parse_message_file(path: Path) -> dict:
             "raw": "",
         }
 
-    blocks = _extract_blocks(raw)
-    messages = []
-    for block in blocks:
-        parsed = _parse_block(block)
-        if parsed is not None:
-            messages.append(parsed)
+    blocks = extract_blocks(raw)
+    messages = parse_messages(raw)
 
     warning = None
     if len(blocks) != len(messages):

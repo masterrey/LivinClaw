@@ -53,6 +53,48 @@ class UIActionsTests(unittest.TestCase):
             self.assertIsNone(error)
             self.assertEqual("hello", content)
 
+    def test_latest_message_reader_returns_message_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "config.yaml").write_text(
+                "interaction:\n  inbox_path: workspace/inbox.md\n  outbox_path: workspace/outbox.md\n",
+                encoding="utf-8",
+            )
+            manager = InteractionManager(root / "workspace/inbox.md", root / "workspace/outbox.md")
+            manager.append_response("hello", response_id="MSG_0007")
+
+            latest, error = actions.read_latest_outbox_message(root)
+
+            self.assertIsNone(error)
+            self.assertIsNotNone(latest)
+            assert latest is not None
+            self.assertEqual("MSG_0007", latest.id)
+            self.assertEqual("hello", latest.content)
+
+    def test_new_outbox_response_reader_detects_stale_latest_message(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "config.yaml").write_text(
+                "interaction:\n  inbox_path: workspace/inbox.md\n  outbox_path: workspace/outbox.md\n",
+                encoding="utf-8",
+            )
+            manager = InteractionManager(root / "workspace/inbox.md", root / "workspace/outbox.md")
+            manager.append_response("first", response_id="MSG_0001")
+
+            content, has_new, error = actions.read_new_outbox_response("MSG_0001", root)
+
+            self.assertIsNone(error)
+            self.assertFalse(has_new)
+            self.assertIsNone(content)
+
+            manager.append_response("second", response_id="MSG_0002")
+
+            content, has_new, error = actions.read_new_outbox_response("MSG_0001", root)
+
+            self.assertIsNone(error)
+            self.assertTrue(has_new)
+            self.assertEqual("second", content)
+
 
 if __name__ == "__main__":
     unittest.main()

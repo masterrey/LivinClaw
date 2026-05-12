@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from interaction.interaction_manager import InteractionManager
+from interaction.message import InteractionMessage
 from scripts.send_message import _interaction_paths_from_config
 from scripts.show_latest_outbox import get_latest_outbox_response
 
@@ -58,10 +59,25 @@ def run_scheduled_tick(root: Path = ROOT) -> tuple[bool, str]:
     return _run_tick("--once", root=root)
 
 
+def read_latest_outbox_message(root: Path = ROOT) -> tuple[InteractionMessage | None, str | None]:
+    return get_latest_outbox_response(root)
+
+
 def read_latest_outbox_response(root: Path = ROOT) -> tuple[str | None, str | None]:
-    latest, error = get_latest_outbox_response(root)
+    latest, error = read_latest_outbox_message(root)
     if error:
         return None, error
     if latest is None:
         return None, None
     return latest.content, None
+
+
+def read_new_outbox_response(
+    previous_message_id: str | None, root: Path = ROOT
+) -> tuple[str | None, bool, str | None]:
+    latest, error = read_latest_outbox_message(root)
+    if error:
+        return None, False, error
+    if latest is None or latest.id == previous_message_id:
+        return None, False, None
+    return latest.content, True, None

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from interaction.markdown_codec import _extract_blocks, _parse_block, _serialize_message
+from interaction.markdown_codec import _serialize_message, parse_messages
 from interaction.message import InteractionMessage
 
 _MESSAGE_ID_RE = re.compile(r"^MSG_(\d+)$")
@@ -18,12 +18,7 @@ class InboxStore:
 
     def load_messages(self) -> list[InteractionMessage]:
         raw = self.path.read_text(encoding="utf-8")
-        messages: list[InteractionMessage] = []
-        for block in _extract_blocks(raw):
-            parsed = _parse_block(block)
-            if parsed is not None:
-                messages.append(parsed)
-        return messages
+        return parse_messages(raw)
 
     def next_message_id(self) -> str:
         numbers = []

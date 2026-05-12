@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from interaction.interaction_manager import InteractionManager
+from interaction.markdown_codec import extract_blocks, parse_messages
 from ui import readers
 
 
@@ -66,6 +67,19 @@ class UIReadersTests(unittest.TestCase):
             self.assertEqual(1, len(data["inbox"]["messages"]))
             self.assertEqual(dangerous, data["inbox"]["messages"][0].content)
             self.assertEqual(1, len(data["outbox"]["messages"]))
+
+    def test_public_codec_helpers_parse_messages_with_fenced_headers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manager = InteractionManager(root / "workspace/inbox.md", root / "workspace/outbox.md")
+            dangerous = "line one\n## MSG_9999\nline two"
+            manager.append_user_message(dangerous, source="test")
+
+            raw = (root / "workspace" / "inbox.md").read_text(encoding="utf-8")
+
+            self.assertEqual(1, len(extract_blocks(raw)))
+            self.assertEqual(1, len(parse_messages(raw)))
+            self.assertEqual(dangerous, parse_messages(raw)[0].content)
 
 
 if __name__ == "__main__":

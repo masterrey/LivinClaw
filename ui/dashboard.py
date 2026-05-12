@@ -18,7 +18,7 @@ st.set_page_config(page_title="LivinClaw Dashboard", layout="wide")
 
 st.title("LivinClaw — Local Alive Agent Dashboard")
 st.caption("A local autonomous runtime with inbox/outbox, ticks, tasks, and persistent memory.")
-st.info("Type a message and click 'Send + Interactive Tick'.")
+st.info("Type a message and click 'Queue Message' or 'Send + Interactive Tick'.")
 st.warning(
     "The dashboard does not call the LLM directly. It sends messages through Inbox and processes them through the runtime tick."
 )
@@ -27,6 +27,8 @@ if "chat_input" not in st.session_state:
     st.session_state["chat_input"] = ""
 if "latest_response" not in st.session_state:
     st.session_state["latest_response"] = ""
+if "latest_response_notice" not in st.session_state:
+    st.session_state["latest_response_notice"] = "Not available yet"
 
 chat_tab, runtime_tab, tasks_tab, memory_tab, io_tab, logs_tab, controls_tab = st.tabs(
     ["Chat", "Runtime", "Tasks", "Memory", "Inbox / Outbox", "Logs", "Controls"]
@@ -37,7 +39,7 @@ with chat_tab:
     st.text_area("Message", key="chat_input", height=120)
     send_col, send_tick_col = st.columns(2)
 
-    if send_col.button("Send"):
+    if send_col.button("Queue Message"):
         ok, message = actions.append_user_message(st.session_state["chat_input"], root=ROOT)
         if ok:
             st.success(f"Message queued in Inbox ({message}).")
@@ -45,6 +47,13 @@ with chat_tab:
             st.error(message)
 
     if send_tick_col.button("Send + Interactive Tick"):
+        latest_before, latest_before_error = actions.read_latest_outbox_message(root=ROOT)
+        if latest_before_error:
+            st.error(latest_before_error)
+        previous_latest_id = latest_before.id if latest_before else None
+        st.session_state["latest_response"] = ""
+        st.session_state["latest_response_notice"] = "Not available yet"
+
         ok, message = actions.append_user_message(st.session_state["chat_input"], root=ROOT)
         if not ok:
             st.error(message)
@@ -53,13 +62,18 @@ with chat_tab:
             if not tick_ok:
                 st.error(f"Interactive tick failed: {tick_message}")
             else:
-                latest, error = actions.read_latest_outbox_response(root=ROOT)
+                latest, has_new_response, error = actions.read_new_outbox_response(
+                    previous_message_id=previous_latest_id,
+                    root=ROOT,
+                )
                 if error:
                     st.error(error)
-                elif latest is None:
-                    st.warning("No response available yet.")
+                elif not has_new_response:
+                    st.session_state["latest_response_notice"] = "No new response generated for this turn."
+                    st.success("Interactive tick executed.")
                 else:
                     st.session_state["latest_response"] = latest
+                    st.session_state["latest_response_notice"] = ""
                     st.success("Interactive tick executed.")
 
     st.subheader("Latest response")
@@ -67,7 +81,7 @@ with chat_tab:
     if latest:
         st.write(latest)
     else:
-        st.info("Not available yet")
+        st.info(st.session_state.get("latest_response_notice", "Not available yet"))
 
     io_data = readers.read_inbox_outbox(ROOT)
     if io_data["inbox"]["warning"]:
