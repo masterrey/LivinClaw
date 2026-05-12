@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 import requests
 
 
@@ -9,6 +11,7 @@ class LLMClient:
         self.model = model
         self.temperature = temperature
         self.timeout = timeout
+        self.logger = logging.getLogger(__name__)
 
     def chat(self, messages: list[dict], temperature: float | None = None, max_tokens: int | None = None) -> str:
         payload = {
@@ -29,5 +32,6 @@ class LLMClient:
 
         choices = data.get("choices") or []
         if not choices:
+            self.logger.warning("LLM response did not include choices.")
             return ""
         return choices[0].get("message", {}).get("content", "")

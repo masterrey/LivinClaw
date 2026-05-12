@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, UTC
 
 
 class ReflectionEngine:
     def __init__(self, llm_client=None) -> None:
         self.llm_client = llm_client
+        self.logger = logging.getLogger(__name__)
 
     def reflect(self, short_summary: str, recent_actions: list[str], recent_observations: list[str]) -> str:
         prompt = (
@@ -23,8 +25,8 @@ class ReflectionEngine:
                         {"role": "user", "content": prompt},
                     ]
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                self.logger.warning("Reflection LLM failed, using local fallback: %s", exc)
 
         now = datetime.now(UTC).isoformat()
         return (

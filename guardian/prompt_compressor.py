@@ -11,5 +11,6 @@ class PromptCompressor:
             return prompt
 
         head_size = int(approx_chars * 0.6)
-        tail_size = approx_chars - head_size - 30
-        return f"{prompt[:head_size]}\n\n[...PROMPT COMPACTADO...]\n\n{prompt[-max(0, tail_size):]}"
+        tail_size = max(0, approx_chars - head_size - 30)
+        tail = prompt[-tail_size:] if tail_size else ""
+        return f"{prompt[:head_size]}\n\n[...PROMPT COMPACTADO...]\n\n{tail}"

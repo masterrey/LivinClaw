@@ -3,6 +3,7 @@ agent:
   tick_minutes: 10
   max_tasks_per_tick: 3
   reflection_enabled: true
+  max_short_summary_chars: 500
 
 guardian:
   enabled: true

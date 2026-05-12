@@ -72,7 +72,8 @@ class AliveAgent:
             safe_context_ratio=guardian_cfg.get("safe_context_ratio", 0.7),
         )
         if report.action == "compress" and report.repaired_prompt:
-            self.short_memory.summary = report.repaired_prompt[:500]
+            max_chars = self.config["agent"].get("max_short_summary_chars", 500)
+            self.short_memory.summary = report.repaired_prompt[:max_chars]
             self.logger.warning("Guardian compressed short-memory summary")
 
     def tick(self) -> None:

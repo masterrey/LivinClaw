@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 
@@ -8,6 +9,7 @@ class MemoryCompactor:
         self.long_memory = long_memory
         self.llm_client = llm_client
         self.max_chars_per_file = max_chars_per_file
+        self.logger = logging.getLogger(__name__)
 
     def _compact_file(self, file_path: Path) -> None:
         content = file_path.read_text(encoding="utf-8")
@@ -24,8 +26,8 @@ class MemoryCompactor:
                 )
                 file_path.write_text(summary.strip() + "\n", encoding="utf-8")
                 return
-            except Exception:
-                pass
+            except Exception as exc:
+                self.logger.warning("LLM compaction failed for %s: %s", file_path.name, exc)
 
         lines = [line.strip() for line in content.splitlines() if line.strip()]
         deduplicated = list(dict.fromkeys(lines))

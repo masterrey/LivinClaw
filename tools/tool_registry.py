@@ -17,10 +17,15 @@ class ToolRegistry:
         return [
             {
                 "name": name,
-                "description": f"Tool {name}",
+                "description": description,
                 "inputSchema": {"type": "object"},
             }
-            for name in self.tools
+            for name, description in {
+                "read_file": "Lê o conteúdo textual de um arquivo UTF-8 pelo caminho informado.",
+                "write_file": "Sobrescreve um arquivo UTF-8 com o conteúdo fornecido.",
+                "create_file": "Cria arquivo e diretórios pais, opcionalmente com conteúdo inicial.",
+                "write_memory": "Grava entrada de memória persistente em long_term/reflections/decisions/facts.",
+            }.items()
         ]
 
     def read_file(self, path: str) -> str:

@@ -28,11 +28,11 @@ MiniClaw Alive é um agente autônomo contínuo em Python com:
 ## Execução
 
 ```bash
-python /home/runner/work/LivinClaw/LivinClaw/alive_agent/main.py --once
+python alive_agent/main.py --once
 ```
 
 Para execução contínua:
 
 ```bash
-python /home/runner/work/LivinClaw/LivinClaw/alive_agent/main.py
+python alive_agent/main.py
 ```
