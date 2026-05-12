@@ -18,6 +18,7 @@ from pathlib import Path
 from agent.anti_degeneration import AntiDegeneration
 from agent.cognitive_budget import CognitiveBudget
 from agent.context_assembler import ContextAssembler
+from agent.interaction_context import InteractionContextBuilder
 from agent.interaction_responder import InteractionResponder
 from agent.planner import Planner
 from agent.reflection import ReflectionEngine
@@ -108,11 +109,20 @@ class AliveAgent:
             )
 
         # Interaction responder (handles greeting/status/ask/freeform routing)
+        chat_context_cfg = config.get("chat_context", {})
+        self.interaction_context_builder = InteractionContextBuilder(
+            short_memory=self.short_memory,
+            task_manager=self.task_manager,
+            memory_router=self.memory_router,
+            cognitive_budget=self.budget,
+            config=chat_context_cfg,
+        )
         self.interaction_responder = InteractionResponder(
             llm_client=self.llm_client,
             task_manager=self.task_manager,
             short_memory=self.short_memory,
             model_name=config.get("model", {}).get("model", ""),
+            context_builder=self.interaction_context_builder,
         )
 
     # ------------------------------------------------------------------
@@ -347,7 +357,7 @@ class AliveAgent:
                     self._loaded_topics_this_tick.append(topic)
 
             directive, payload = self.interaction.classify_directive(message.content)
-            response_text = self._handle_interaction_directive(directive, payload)
+            response_text = self._handle_interaction_directive(directive, payload, loaded_topics)
             self.interaction.append_response(
                 content=response_text,
                 response_id=message.id,
@@ -364,7 +374,7 @@ class AliveAgent:
         self._guardian_checkpoint()
         self.logger.info("Tick #%s finished (%s)", self.tick_count, TickType.INTERACTIVE.value)
 
-    def _handle_interaction_directive(self, directive: str, payload: str) -> str:
+    def _handle_interaction_directive(self, directive: str, payload: str, loaded_topics: dict[str, str] | None = None) -> str:
         cleaned = payload.strip()
         if directive == "invalid" or not cleaned and directive not in ("status",):
             return "Mensagem inválida ignorada: conteúdo vazio."
@@ -378,19 +388,22 @@ class AliveAgent:
             self.long_memory.append_fact(f"Nota humana registrada: {cleaned}")
             return f"Nota registrada: {cleaned}" if cleaned else "Nota registrada."
 
-        context = self._build_responder_context()
+        context = self._build_responder_context(loaded_topics=loaded_topics)
         return self.interaction_responder.respond(directive, cleaned, context)
 
-    def _build_responder_context(self) -> dict:
+    def _build_responder_context(self, loaded_topics: dict[str, str] | None = None) -> dict:
         pending_tasks = self.task_manager.get_pending_tasks(limit=10)
         inbox_pending = self.interaction.pending_count() if self.interaction else 0
-        return {
+        responder_context: dict = {
             "tick_type": TickType.INTERACTIVE.value,
             "pending_tasks": pending_tasks,
             "inbox_pending": inbox_pending,
             "model_name": self.config.get("model", {}).get("model", ""),
             "memory_summary": self.short_memory.summary,
         }
+        if loaded_topics is not None:
+            responder_context["loaded_topics"] = loaded_topics
+        return responder_context
 
     def _run_maintenance_tick(self) -> None:
         self.last_tick_type = TickType.MAINTENANCE
