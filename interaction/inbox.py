@@ -93,10 +93,11 @@ def _parse_block(block: str) -> InteractionMessage | None:
     if metadata_idx + 2 >= len(lines) or content_idx + 2 >= len(lines):
         return None
 
-    metadata_fence = lines[metadata_idx + 1]
-    if not metadata_fence.endswith("json"):
+    metadata_fence = lines[metadata_idx + 1].strip()
+    metadata_match = re.match(r"^(`{3,})(?:\S*)?$", metadata_fence)
+    if metadata_match is None:
         return None
-    metadata_open = metadata_fence[:-4]
+    metadata_open = metadata_match.group(1)
     metadata_close_idx = None
     for idx in range(metadata_idx + 2, len(lines)):
         if lines[idx] == metadata_open:
@@ -105,10 +106,11 @@ def _parse_block(block: str) -> InteractionMessage | None:
     if metadata_close_idx is None:
         return None
 
-    content_fence = lines[content_idx + 1]
-    if not content_fence.endswith("text"):
+    content_fence = lines[content_idx + 1].strip()
+    content_match = re.match(r"^(`{3,})(?:\S*)?$", content_fence)
+    if content_match is None:
         return None
-    content_open = content_fence[:-4]
+    content_open = content_match.group(1)
     content_close_idx = None
     for idx in range(content_idx + 2, len(lines)):
         if lines[idx] == content_open:
