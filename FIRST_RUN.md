@@ -52,28 +52,42 @@ run_alive.bat
 
 Stop with `Ctrl+C` in the terminal window.
 
-## 7) Test inbox/outbox interaction
+## 7) Send messages and run an interactive tick
 
-Recommended (safe serialization via existing `InteractionManager`):
+`workspace/inbox.md` and `workspace/outbox.md` are **structured storage files** that
+the agent runtime reads and writes via a safe serialization format. Do not edit them
+manually — any free-form text you add can break the block format and cause messages
+to be silently skipped.
+
+Use `send_message.bat` to append messages safely:
 
 ```bat
-.venv\Scripts\python.exe scripts\send_message.py "@task Create a short summary of the current agent architecture"
+send_message.bat "@task Create a short summary of the current agent architecture"
+send_message.bat "@ask What is your current status?"
+send_message.bat "@note Prefer short answers during first-run tests"
 ```
 
-Then run one tick:
+Then run one interactive tick to process pending inbox messages:
 
 ```bat
-run_once.bat
+run_interactive.bat
 ```
 
-Inspect:
-- `workspace/inbox.md`
-- `workspace/outbox.md`
-- `workspace/tasks.md`
-- `workspace/logs/agent.log`
-- `workspace/memory/`
+Or use `interact.bat` to send a message and run the tick in one step:
 
-Manual fallback (if needed): edit `workspace/inbox.md` carefully in the existing message block format.
+```bat
+interact.bat "@task Create a short summary of the current agent architecture"
+```
+
+After the tick completes, inspect the workspace to see results:
+
+| File / Folder | Purpose |
+|---|---|
+| `workspace/inbox.md` | Observable: pending and processed messages |
+| `workspace/outbox.md` | Observable: agent responses |
+| `workspace/tasks.md` | Observable: task queue |
+| `workspace/logs/agent.log` | Runtime log |
+| `workspace/memory/` | Persistent memory branches |
 
 ## 8) Run tests
 
@@ -87,4 +101,5 @@ run_tests.bat
 - **LM Studio connection errors**: confirm server is running on `127.0.0.1:1234`.
 - **Wrong model name**: update `model.model` in `config.yaml`.
 - **Missing .venv error in run scripts**: run `setup.bat` first.
-- **No output in outbox**: verify inbox has pending message and run `run_once.bat`.
+- **No output in outbox**: verify inbox has a pending message (`send_message.bat`) and run `run_interactive.bat` or `run_once.bat`.
+- **Do not edit inbox.md manually**: use `send_message.bat` to preserve the structured block format.

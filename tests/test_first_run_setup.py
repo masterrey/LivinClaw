@@ -66,6 +66,19 @@ class FirstRunSetupTests(unittest.TestCase):
             self.assertEqual("- [ ] existing task\n", tasks.read_text(encoding="utf-8"))
             self.assertTrue((workspace / "logs").exists())
 
+    def test_workspace_bootstrap_creates_empty_tasks_without_pending(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+
+            ensure_workspace_files(root)
+
+            tasks = root / "workspace" / "tasks.md"
+            self.assertTrue(tasks.exists())
+
+            content = tasks.read_text(encoding="utf-8")
+            # Must not contain any pending task line
+            self.assertNotIn("- [ ]", content)
+
     def test_send_message_appends_safe_payload(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -38,7 +38,7 @@ def ensure_workspace_files(root: Path = ROOT) -> None:
     if not outbox.exists():
         outbox.write_text("# Outbox\n\n", encoding="utf-8")
     if not tasks.exists():
-        tasks.write_text("- [ ] initial task\n", encoding="utf-8")
+        tasks.write_text("# Tasks\n\n", encoding="utf-8")
 
 
 def main() -> None:
