@@ -300,5 +300,58 @@ class PlannerAndReflectionContextWiringTests(unittest.TestCase):
         self.assertIn(routed_context, user_prompt)
 
 
+class AliveAgentDuplicateTaskTests(unittest.TestCase):
+    def test_duplicate_task_is_marked_done_with_suppression_result(self) -> None:
+        from agent.alive_agent import AliveAgent
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            tasks_file = root / "workspace" / "tasks.md"
+            tasks_file.parent.mkdir(parents=True, exist_ok=True)
+            tasks_file.write_text("- [ ] tarefa A\n", encoding="utf-8")
+
+            config = {
+                "agent": {
+                    "max_tasks_per_tick": 3,
+                    "reflection_enabled": False,
+                    "max_short_summary_chars": 500,
+                },
+                "guardian": {
+                    "enabled": False,
+                    "check_every_ticks": 6,
+                    "max_guardian_tokens": 3000,
+                    "main_context_limit": 16000,
+                    "safe_context_ratio": 0.7,
+                },
+                "model": {
+                    "base_url": "http://127.0.0.1:1234/v1",
+                    "model": "test-model",
+                    "temperature": 0.3,
+                },
+                "paths": {
+                    "tasks": "workspace/tasks.md",
+                    "memory_dir": "workspace/memory",
+                },
+                "memory": {"importance_decay": 0.95},
+                "cognitive_budget": {
+                    "max_tokens_per_tick": 1000,
+                    "max_loaded_topics": 3,
+                    "max_reflections_per_day": 5,
+                    "reflection_cooldown_ticks": 2,
+                    "max_compactions_per_hour": 1,
+                },
+                "reflection": {"enabled": False},
+            }
+
+            agent = AliveAgent(config=config, root_dir=root)
+            agent.anti_degen.record_task("tarefa A")
+
+            agent.tick()
+
+            content = tasks_file.read_text(encoding="utf-8")
+            self.assertIn("- [x] tarefa A — duplicate suppressed", content)
+            self.assertEqual([], agent.task_manager.get_pending_tasks())
+
+
 if __name__ == "__main__":
     unittest.main()

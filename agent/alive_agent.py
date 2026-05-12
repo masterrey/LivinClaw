@@ -193,7 +193,8 @@ class AliveAgent:
 
             for task in pending:
                 if self.anti_degen.is_task_duplicate(task):
-                    self.logger.info("Task skipped (duplicate detected): %s", task)
+                    self.task_manager.mark_done(task, "duplicate suppressed")
+                    self.logger.info("Task suppressed as duplicate: %s", task)
                     continue
                 self.anti_degen.record_task(task)
                 result = self._execute_task(task, loaded_topics=loaded_topics)
