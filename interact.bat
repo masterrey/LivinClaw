@@ -21,7 +21,7 @@ if not exist ".venv\Scripts\activate.bat" (
 call ".venv\Scripts\activate.bat"
 
 echo Sending message to inbox...
-python scripts\send_message.py %*
+python -m scripts.send_message %*
 if errorlevel 1 (
   echo ERROR: Failed to append message to inbox.
   pause

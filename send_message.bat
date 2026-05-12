@@ -22,7 +22,7 @@ if not exist ".venv\Scripts\activate.bat" (
 )
 
 call ".venv\Scripts\activate.bat"
-python scripts\send_message.py %*
+python -m scripts.send_message %*
 
 echo.
 pause

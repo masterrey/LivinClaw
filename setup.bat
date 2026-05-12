@@ -3,17 +3,27 @@ setlocal
 cd /d "%~dp0"
 
 echo [1/6] Checking Python...
+set "PYTHON_CMD="
 where python >nul 2>nul
-if errorlevel 1 (
-  echo ERROR: Python was not found in PATH.
+if not errorlevel 1 set "PYTHON_CMD=python"
+
+if "%PYTHON_CMD%"=="" (
+  where py >nul 2>nul
+  if not errorlevel 1 set "PYTHON_CMD=py -3"
+)
+
+if "%PYTHON_CMD%"=="" (
+  echo ERROR: Python was not found in PATH and py launcher is unavailable.
   echo Install Python 3.10+ and enable "Add Python to PATH", then run setup.bat again.
   pause
   exit /b 1
 )
 
+echo Using Python command: %PYTHON_CMD%
+
 echo [2/6] Creating local virtual environment (.venv) if needed...
 if not exist ".venv\Scripts\python.exe" (
-  python -m venv .venv
+  %PYTHON_CMD% -m venv .venv
   if errorlevel 1 (
     echo ERROR: Failed to create .venv
     pause
@@ -32,7 +42,7 @@ if errorlevel 1 (
 )
 
 echo [4/6] Upgrading pip...
-python -m pip install --upgrade pip
+".venv\Scripts\python.exe" -m pip install --upgrade pip
 if errorlevel 1 (
   echo ERROR: Failed to upgrade pip
   pause
@@ -40,7 +50,7 @@ if errorlevel 1 (
 )
 
 echo [5/6] Installing dependencies from requirements.txt...
-python -m pip install -r requirements.txt
+".venv\Scripts\python.exe" -m pip install -r requirements.txt
 if errorlevel 1 (
   echo ERROR: Failed to install dependencies
   pause
@@ -48,7 +58,7 @@ if errorlevel 1 (
 )
 
 echo [6/6] Bootstrapping local config and workspace files...
-python scripts/bootstrap_first_run.py
+".venv\Scripts\python.exe" scripts/bootstrap_first_run.py
 if errorlevel 1 (
   echo ERROR: Failed to bootstrap config/workspace
   pause
