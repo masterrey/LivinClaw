@@ -260,6 +260,31 @@ Fluxo preservado:
 
 Isso melhora a percepção de responsividade sem virar web UI, API server ou chatbot direto.
 
+## Local Web Dashboard Prototype
+
+Dashboard local opcional com Streamlit para visualizar o runtime vivo (Inbox/Outbox, ticks, tarefas, memória e logs).
+O runtime principal continua sem dependência obrigatória de Streamlit.
+
+Setup da UI:
+
+```bat
+setup_ui.bat
+```
+
+Execução da UI:
+
+```bat
+run_dashboard.bat
+```
+
+Comportamento arquitetural:
+
+- dashboard local-only para interação e observabilidade
+- não bypassa o runtime
+- não faz chamada direta ao LLM
+- fluxo preservado: Dashboard -> InteractionManager -> Inbox -> Interactive Tick -> Outbox -> Dashboard
+- dependência opcional em `requirements-ui.txt`
+
 ## Testes
 
 ```bash

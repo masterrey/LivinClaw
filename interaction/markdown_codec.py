@@ -135,3 +135,20 @@ def _parse_block(block: str) -> InteractionMessage | None:
         status=data.get("status", "pending"),
         metadata=data.get("metadata", {}),
     )
+
+
+def extract_blocks(raw: str) -> list[str]:
+    return _extract_blocks(raw)
+
+
+def parse_block(block: str) -> InteractionMessage | None:
+    return _parse_block(block)
+
+
+def parse_messages(raw: str) -> list[InteractionMessage]:
+    messages: list[InteractionMessage] = []
+    for block in extract_blocks(raw):
+        parsed = parse_block(block)
+        if parsed is not None:
+            messages.append(parsed)
+    return messages

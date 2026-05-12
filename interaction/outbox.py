@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from interaction.markdown_codec import _extract_blocks, _parse_block, _serialize_message
+from interaction.markdown_codec import _serialize_message, extract_blocks, parse_messages
 from interaction.message import InteractionMessage, InteractionResponse
 
 
@@ -36,12 +36,7 @@ class OutboxStore:
         if not self.path.exists():
             return []
         raw = self.path.read_text(encoding="utf-8")
-        messages: list[InteractionMessage] = []
-        for block in _extract_blocks(raw):
-            parsed = _parse_block(block)
-            if parsed is not None:
-                messages.append(parsed)
-        return messages
+        return parse_messages(raw)
 
     def latest_message(self) -> InteractionMessage | None:
         messages = self.load_messages()
@@ -53,6 +48,6 @@ class OutboxStore:
         if not self.path.exists():
             return True
         raw = self.path.read_text(encoding="utf-8")
-        header_count = len(_extract_blocks(raw))
+        header_count = len(extract_blocks(raw))
         parsed_count = len(self.load_messages())
         return header_count == parsed_count
