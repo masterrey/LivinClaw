@@ -325,16 +325,18 @@ class AliveAgent:
         if budget_report.action == "compress":
             self.logger.warning("Interactive token budget pressure detected: %s", budget_report.reason)
 
-        query = pending[0].content
         max_loaded_topics = int(interactive_cfg.get("max_loaded_topics", 2))
-        loaded_topics = self.memory_router.route(
-            task=query,
-            short_memory_text=self.short_memory.summary,
-        )
-        loaded_topics = dict(list(loaded_topics.items())[:max_loaded_topics])
-        self._loaded_topics_this_tick = list(loaded_topics.keys())
 
         for message in pending:
+            loaded_topics = self.memory_router.route(
+                task=message.content,
+                short_memory_text=self.short_memory.summary,
+            )
+            loaded_topics = dict(list(loaded_topics.items())[:max_loaded_topics])
+            for topic in loaded_topics:
+                if topic not in self._loaded_topics_this_tick:
+                    self._loaded_topics_this_tick.append(topic)
+
             directive, payload = self.interaction.classify_directive(message.content)
             response_text = self._handle_interaction_directive(directive, payload)
             self.interaction.append_response(

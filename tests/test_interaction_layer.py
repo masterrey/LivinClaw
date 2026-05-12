@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from agent.alive_agent import AliveAgent, TickType
 from interaction.interaction_manager import InteractionManager
@@ -175,6 +176,33 @@ class InteractiveTickTests(unittest.TestCase):
             self.assertIn("tarefas_pendentes: pending one", outbox_content)
             self.assertIn("resumo_memoria_curta: short summary for ask", outbox_content)
             self.assertIn("ultimo_tick: interactive", outbox_content)
+
+    def test_per_message_routing_in_interactive_tick(self) -> None:
+        """Each pending message must be routed independently; router is called once per message."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            tasks_file = root / "workspace/tasks.md"
+            tasks_file.parent.mkdir(parents=True, exist_ok=True)
+            tasks_file.write_text("", encoding="utf-8")
+
+            agent = AliveAgent(config=_base_config(), root_dir=root)
+            assert agent.interaction is not None
+            agent.interaction.append_user_message("@ask What is the memory status?")
+            agent.interaction.append_user_message("@task Write a deployment plan")
+
+            route_calls: list[str] = []
+            original_route = agent.memory_router.route
+
+            def capturing_route(task: str, short_memory_text: str = "") -> dict:
+                route_calls.append(task)
+                return original_route(task=task, short_memory_text=short_memory_text)
+
+            with patch.object(agent.memory_router, "route", side_effect=capturing_route):
+                agent.tick(reason=TickType.INTERACTIVE)
+
+            self.assertEqual(2, len(route_calls), "route() must be called once per message")
+            self.assertIn("@ask What is the memory status?", route_calls[0])
+            self.assertIn("@task Write a deployment plan", route_calls[1])
 
 
 if __name__ == "__main__":
