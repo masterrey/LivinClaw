@@ -179,13 +179,14 @@ def build_chat_transcript(inbox_messages, outbox_messages, limit: int = 20) -> l
                 }
             )
 
-    created_values = [item.get("created_at") for item in transcript]
-    parsed_times = [_parse_created_at(value) for value in created_values]
-    can_sort_by_time = bool(transcript) and all(item is not None for item in parsed_times)
+    indexed_datetimes = [
+        (index, item, _parse_created_at(item.get("created_at")))
+        for index, item in enumerate(transcript)
+    ]
+    can_sort_by_time = bool(indexed_datetimes) and all(parsed is not None for _, _, parsed in indexed_datetimes)
     if can_sort_by_time:
-        indexed = list(enumerate(transcript))
-        indexed.sort(key=lambda pair: (parsed_times[pair[0]], pair[0]))
-        transcript = [item for _, item in indexed]
+        indexed_datetimes.sort(key=lambda pair: (pair[2], pair[0]))
+        transcript = [item for _, item, _ in indexed_datetimes]
 
     if limit <= 0:
         return transcript

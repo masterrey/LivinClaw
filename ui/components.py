@@ -68,8 +68,8 @@ def render_chat_status_strip(st, runtime_snapshot: dict) -> None:
         {
             "Alive runtime": "ready" if runtime_ready else "not ready",
             "Model": model_label or "Not available yet",
-            "Pending tasks": counts.get("tasks_pending", "Not available yet"),
-            "Inbox pending": counts.get("inbox_pending", "Not available yet"),
+            "Pending tasks": counts.get("tasks_pending", 0),
+            "Inbox pending": counts.get("inbox_pending", 0),
         },
     )
 

@@ -35,6 +35,7 @@ chat_tab, runtime_tab, tasks_tab, memory_tab, io_tab, logs_tab, controls_tab = s
 
 with chat_tab:
     rerun = getattr(st, "rerun", getattr(st, "experimental_rerun", None))
+    can_rerun = callable(rerun)
     st.subheader("LivinClaw Chat")
     st.caption(
         "Talk to the alive agent. Messages go through Inbox → Interactive Tick → Managed Context → Outbox."
@@ -74,20 +75,26 @@ with chat_tab:
         ok, result = actions.send_message_and_run_tick(st.session_state["current_draft_message"], root=ROOT)
         st.session_state["last_sent_message_id"] = result.get("message_id")
         st.session_state["current_draft_message"] = ""
+        if ok:
+            status_level = "success"
+        elif result.get("tick_ok"):
+            status_level = "warning"
+        else:
+            status_level = "error"
+
+        if result.get("response_found"):
+            status_text = "Message sent and response received."
+        elif result.get("tick_ok"):
+            status_text = "No response generated for this turn yet."
+        else:
+            status_text = "Could not run interactive tick."
+
         st.session_state["last_action_status"] = {
-            "level": "success" if ok else ("warning" if result.get("tick_ok") else "error"),
-            "text": (
-                "Message sent and response received."
-                if result.get("response_found")
-                else (
-                    "No response generated for this turn yet."
-                    if result.get("tick_ok")
-                    else "Could not run interactive tick."
-                )
-            ),
+            "level": status_level,
+            "text": status_text,
             "details": result,
         }
-        if rerun:
+        if can_rerun:
             rerun()
 
     with st.expander("Advanced"):
@@ -101,11 +108,11 @@ with chat_tab:
                     "text": "Message queued, but the runtime did not produce a response.",
                     "details": {"message_id": message},
                 }
-                if rerun:
+                if can_rerun:
                     rerun()
             else:
                 st.session_state["last_action_status"] = {"level": "error", "text": message, "details": None}
-                if rerun:
+                if can_rerun:
                     rerun()
 
     with st.expander("Try examples"):

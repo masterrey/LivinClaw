@@ -3,7 +3,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from interaction.interaction_manager import InteractionManager
 from ui import actions
@@ -125,11 +125,7 @@ class UIActionsTests(unittest.TestCase):
                     current = pending[-1]
                     manager.mark_processed(current.id)
                     manager.append_response("fresh", response_id=current.id)
-                class Result:
-                    returncode = 0
-                    stdout = ""
-                    stderr = ""
-                return Result()
+                return Mock(returncode=0, stdout="", stderr="")
 
             with patch("ui.actions.subprocess.run", side_effect=run_with_matching_response):
                 ok, data = actions.send_message_and_run_tick("hello", root)
