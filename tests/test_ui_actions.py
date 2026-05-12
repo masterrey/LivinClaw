@@ -34,7 +34,7 @@ class UIActionsTests(unittest.TestCase):
                 ok, _ = actions.run_interactive_tick(root)
 
                 self.assertTrue(ok)
-                command = run_mock.call_args.kwargs["args"] if "args" in run_mock.call_args.kwargs else run_mock.call_args.args[0]
+                command = run_mock.call_args.args[0]
                 self.assertIn("alive_agent/main.py", command)
                 self.assertIn("--interactive", command)
 

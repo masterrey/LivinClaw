@@ -41,10 +41,13 @@ def _run_tick(flag: str, root: Path = ROOT) -> tuple[bool, str]:
     if result.returncode == 0:
         return True, "Tick executed successfully."
 
-    output = "\n".join(part.strip() for part in (result.stderr, result.stdout) if part.strip())
+    parts = [part.strip() for part in (result.stderr, result.stdout) if part and part.strip()]
+    output = "\n".join(parts).strip()
     if not output:
         output = f"exit code {result.returncode}"
-    return False, output.splitlines()[-1].strip()
+    lines = output.splitlines()
+    last_line = lines[-1].strip() if lines else output
+    return False, last_line
 
 
 def run_interactive_tick(root: Path = ROOT) -> tuple[bool, str]:

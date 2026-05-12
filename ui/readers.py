@@ -292,7 +292,11 @@ def read_runtime_snapshot(root: Path = ROOT) -> dict:
 
     last_tick = "Not available yet"
     if logs_info["lines"]:
-        last_tick = logs_info["lines"][-1]
+        tick_lines = [line for line in logs_info["lines"] if "tick" in line.lower()]
+        if tick_lines:
+            last_tick = tick_lines[-1]
+        else:
+            last_tick = "Unknown"
 
     return {
         "model_provider": model_cfg.get("provider", "Unknown"),
