@@ -153,7 +153,7 @@ def read_tasks(root: Path = ROOT) -> dict:
         stripped = line.strip()
         if stripped.startswith("- [ ] "):
             pending.append(stripped[6:])
-        elif stripped.lower().startswith("- [x] "):
+        elif stripped.startswith("- [x] ") or stripped.startswith("- [X] "):
             completed.append(stripped[6:])
         elif stripped:
             other.append(stripped)
@@ -194,7 +194,12 @@ def read_logs(root: Path = ROOT, tail_lines: int = 100, text_filter: str = "") -
             "error": f"Could not read file: {exc}",
         }
 
-    selected = lines[-tail_lines:] if tail_lines > 0 else lines
+    if tail_lines < 0:
+        selected = lines
+    elif tail_lines == 0:
+        selected = []
+    else:
+        selected = lines[-tail_lines:]
     if text_filter:
         needle = text_filter.lower()
         selected = [line for line in selected if needle in line.lower()]
