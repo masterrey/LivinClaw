@@ -18,6 +18,7 @@ from pathlib import Path
 from agent.anti_degeneration import AntiDegeneration
 from agent.cognitive_budget import CognitiveBudget
 from agent.context_assembler import ContextAssembler
+from agent.interaction_responder import InteractionResponder
 from agent.planner import Planner
 from agent.reflection import ReflectionEngine
 from guardian.guardian import GuardianLayer
@@ -105,6 +106,14 @@ class AliveAgent:
                 inbox_path=root_dir / interaction_cfg.get("inbox_path", "workspace/inbox.md"),
                 outbox_path=root_dir / interaction_cfg.get("outbox_path", "workspace/outbox.md"),
             )
+
+        # Interaction responder (handles greeting/status/ask/freeform routing)
+        self.interaction_responder = InteractionResponder(
+            llm_client=self.llm_client,
+            task_manager=self.task_manager,
+            short_memory=self.short_memory,
+            model_name=config.get("model", {}).get("model", ""),
+        )
 
     # ------------------------------------------------------------------
     # Task execution
@@ -357,7 +366,7 @@ class AliveAgent:
 
     def _handle_interaction_directive(self, directive: str, payload: str) -> str:
         cleaned = payload.strip()
-        if directive == "invalid" or not cleaned:
+        if directive == "invalid" or not cleaned and directive not in ("status",):
             return "Mensagem inválida ignorada: conteúdo vazio."
         if directive == "task":
             created = self.task_manager.add_task(cleaned)
@@ -367,24 +376,21 @@ class AliveAgent:
         if directive == "note":
             self.short_memory.add_observation(f"Nota humana: {cleaned}", importance=0.7)
             self.long_memory.append_fact(f"Nota humana registrada: {cleaned}")
-            return "Nota registrada na memória de trabalho e memória longa."
-        if directive == "ask":
-            return self._build_ask_state_response(question=cleaned)
-        return f"Mensagem recebida e registrada para execução no loop autônomo: {cleaned}"
+            return f"Nota registrada: {cleaned}" if cleaned else "Nota registrada."
 
-    def _build_ask_state_response(self, question: str) -> str:
-        pending = self.task_manager.get_pending_tasks(limit=3)
-        pending_text = ", ".join(pending) if pending else "nenhuma"
-        last_tick = self.last_tick_type.value if self.last_tick_type else "none"
-        summary = self.short_memory.summary
-        return (
-            "Estado atual do runtime:\n"
-            f"- pergunta: {question}\n"
-            f"- tick_atual: {TickType.INTERACTIVE.value}\n"
-            f"- ultimo_tick: {last_tick}\n"
-            f"- tarefas_pendentes: {pending_text}\n"
-            f"- resumo_memoria_curta: {summary}"
-        )
+        context = self._build_responder_context()
+        return self.interaction_responder.respond(directive, cleaned, context)
+
+    def _build_responder_context(self) -> dict:
+        pending_tasks = self.task_manager.get_pending_tasks(limit=10)
+        inbox_pending = self.interaction.pending_count() if self.interaction else 0
+        return {
+            "tick_type": TickType.INTERACTIVE.value,
+            "pending_tasks": pending_tasks,
+            "inbox_pending": inbox_pending,
+            "model_name": self.config.get("model", {}).get("model", ""),
+            "memory_summary": self.short_memory.summary,
+        }
 
     def _run_maintenance_tick(self) -> None:
         self.last_tick_type = TickType.MAINTENANCE

@@ -50,6 +50,13 @@ def main() -> None:
     print("LivinClaw Console")
     print("Type /exit to quit.")
     print()
+    print("Examples:")
+    print("  olá")
+    print("  @status")
+    print("  @ask me explique sua arquitetura")
+    print("  @task revisar memória")
+    print("  @note prefiro respostas curtas")
+    print()
 
     while True:
         try:

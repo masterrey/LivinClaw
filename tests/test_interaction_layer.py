@@ -157,7 +157,7 @@ class InteractiveTickTests(unittest.TestCase):
                 agent.tick_lock.release()
             self.assertEqual(0, agent.tick_count)
 
-    def test_ask_returns_state_based_response(self) -> None:
+    def test_ask_routes_to_llm_and_returns_response(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             tasks_file = root / "workspace/tasks.md"
@@ -169,13 +169,15 @@ class InteractiveTickTests(unittest.TestCase):
             agent.short_memory.summary = "short summary for ask"
             agent.interaction.append_user_message("@ask What's current status?")
 
-            agent.tick(reason=TickType.INTERACTIVE)
+            with patch.object(
+                agent.interaction_responder.llm_client,
+                "chat",
+                return_value="Sou o LivinClaw, um agente autônomo local.",
+            ):
+                agent.tick(reason=TickType.INTERACTIVE)
 
             outbox_content = (root / "workspace/outbox.md").read_text(encoding="utf-8")
-            self.assertIn("Estado atual do runtime", outbox_content)
-            self.assertIn("tarefas_pendentes: pending one", outbox_content)
-            self.assertIn("resumo_memoria_curta: short summary for ask", outbox_content)
-            self.assertIn("ultimo_tick: interactive", outbox_content)
+            self.assertIn("Sou o LivinClaw", outbox_content)
 
     def test_per_message_routing_in_interactive_tick(self) -> None:
         """Each pending message must be routed independently; router is called once per message."""
