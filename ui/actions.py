@@ -6,6 +6,7 @@ from pathlib import Path
 
 from interaction.interaction_manager import InteractionManager
 from interaction.message import InteractionMessage
+from interaction.outbox import OutboxStore
 from scripts.send_message import _interaction_paths_from_config
 from scripts.show_latest_outbox import get_latest_outbox_response
 
@@ -81,3 +82,55 @@ def read_new_outbox_response(
     if latest is None or latest.id == previous_message_id:
         return None, False, None
     return latest.content, True, None
+
+
+def read_outbox_response_by_message_id(
+    message_id: str | None, root: Path = ROOT
+) -> tuple[InteractionMessage | None, str | None]:
+    if not message_id:
+        return None, "Message ID is required."
+    try:
+        _, outbox_path = _interaction_paths_from_config(root)
+        store = OutboxStore(outbox_path, create_if_missing=False)
+        messages = store.load_messages()
+    except Exception as exc:
+        return None, f"Could not read outbox: {exc}"
+
+    for message in reversed(messages):
+        if message.id == message_id:
+            return message, None
+    return None, None
+
+
+def send_message_and_run_tick(content: str, root: Path = ROOT) -> tuple[bool, dict]:
+    result = {
+        "message_id": None,
+        "tick_ok": False,
+        "tick_message": "Not available yet",
+        "response": None,
+        "response_found": False,
+        "error": None,
+    }
+
+    append_ok, append_message = append_user_message(content, root=root)
+    if not append_ok:
+        result["error"] = append_message
+        result["tick_message"] = "Message was not queued."
+        return False, result
+
+    message_id = append_message
+    result["message_id"] = message_id
+
+    tick_ok, tick_message = run_interactive_tick(root=root)
+    result["tick_ok"] = tick_ok
+    result["tick_message"] = tick_message
+
+    response_message, response_error = read_outbox_response_by_message_id(message_id, root=root)
+    if response_error:
+        result["error"] = response_error
+    elif response_message is not None:
+        result["response"] = response_message.content
+        result["response_found"] = True
+
+    overall_ok = tick_ok and result["error"] is None
+    return overall_ok, result

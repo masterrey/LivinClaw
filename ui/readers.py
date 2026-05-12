@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 import yaml
@@ -8,6 +9,20 @@ from interaction.markdown_codec import extract_blocks, parse_messages
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _parse_created_at(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    candidate = value.strip()
+    if not candidate:
+        return None
+    if candidate.endswith("Z"):
+        candidate = candidate[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(candidate)
+    except ValueError:
+        return None
 
 
 def _safe_load_yaml(path: Path) -> tuple[dict, str | None]:
@@ -113,6 +128,87 @@ def read_inbox_outbox(root: Path = ROOT) -> dict:
             "inbox_processed": processed,
             "outbox_total": len(outbox["messages"]),
         },
+    }
+
+
+def build_chat_transcript(inbox_messages, outbox_messages, limit: int = 20) -> list[dict]:
+    transcript: list[dict] = []
+    outbox_by_id: dict[str, list] = {}
+
+    for message in outbox_messages:
+        outbox_by_id.setdefault(message.id, []).append(message)
+
+    for message in inbox_messages:
+        transcript.append(
+            {
+                "role": "user",
+                "content": message.content,
+                "message_id": message.id,
+                "created_at": message.created_at,
+                "status": message.status,
+                "sender": message.sender,
+                "source": message.source,
+            }
+        )
+
+        matches = outbox_by_id.get(message.id, [])
+        if matches:
+            for response in matches:
+                transcript.append(
+                    {
+                        "role": "assistant",
+                        "content": response.content,
+                        "message_id": response.id,
+                        "created_at": response.created_at,
+                        "status": response.status,
+                        "sender": response.sender,
+                        "source": response.source,
+                    }
+                )
+        else:
+            transcript.append(
+                {
+                    "role": "assistant",
+                    "content": "LivinClaw is processing or no response yet.",
+                    "message_id": message.id,
+                    "created_at": message.created_at,
+                    "status": "pending",
+                    "sender": "agent",
+                    "source": "runtime",
+                    "pending_notice": True,
+                }
+            )
+
+    created_values = [item.get("created_at") for item in transcript]
+    parsed_times = [_parse_created_at(value) for value in created_values]
+    can_sort_by_time = bool(transcript) and all(item is not None for item in parsed_times)
+    if can_sort_by_time:
+        indexed = list(enumerate(transcript))
+        indexed.sort(key=lambda pair: (parsed_times[pair[0]], pair[0]))
+        transcript = [item for _, item in indexed]
+
+    if limit <= 0:
+        return transcript
+    return transcript[-limit:]
+
+
+def read_chat_transcript(root: Path = ROOT, limit: int = 20) -> dict:
+    io_data = read_inbox_outbox(root)
+    if io_data["inbox"]["error"]:
+        return {"messages": [], "warning": io_data["inbox"]["warning"], "error": io_data["inbox"]["error"]}
+    if io_data["outbox"]["error"]:
+        return {"messages": [], "warning": io_data["outbox"]["warning"], "error": io_data["outbox"]["error"]}
+
+    transcript = build_chat_transcript(
+        inbox_messages=io_data["inbox"]["messages"],
+        outbox_messages=io_data["outbox"]["messages"],
+        limit=limit,
+    )
+    warning = io_data["inbox"]["warning"] or io_data["outbox"]["warning"]
+    return {
+        "messages": transcript,
+        "warning": warning,
+        "error": None,
     }
 
 
