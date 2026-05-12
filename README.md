@@ -181,6 +181,34 @@ Para execução contínua:
 python alive_agent/main.py
 ```
 
+## Quick Start on Windows
+
+1. Run setup:
+
+```bat
+setup.bat
+```
+
+2. Run tests:
+
+```bat
+run_tests.bat
+```
+
+3. Run one tick:
+
+```bat
+run_once.bat
+```
+
+4. Run continuous mode:
+
+```bat
+run_alive.bat
+```
+
+See `FIRST_RUN.md` for full setup, LM Studio checks, and first interaction steps.
+
 ## Testes
 
 ```bash
