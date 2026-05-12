@@ -1,0 +1,24 @@
+agent:
+  name: "MiniClaw Alive"
+  tick_minutes: 10
+  max_tasks_per_tick: 3
+  reflection_enabled: true
+  max_short_summary_chars: 500
+
+guardian:
+  enabled: true
+  check_every_ticks: 6
+  max_guardian_tokens: 3000
+  main_context_limit: 16000
+  safe_context_ratio: 0.70
+
+model:
+  provider: "lmstudio"
+  base_url: "http://127.0.0.1:1234/v1"
+  model: "openai/gpt-oss-20b"
+  temperature: 0.3
+
+paths:
+  tasks: "workspace/tasks.md"
+  memory_dir: "workspace/memory"
+  logs_dir: "workspace/logs"

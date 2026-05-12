@@ -1,0 +1,2 @@
+- [ ] revisar saúde operacional
+- [ ] consolidar fatos relevantes
