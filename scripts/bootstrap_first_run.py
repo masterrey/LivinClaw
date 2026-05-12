@@ -38,36 +38,7 @@ def ensure_workspace_files(root: Path = ROOT) -> None:
     if not outbox.exists():
         outbox.write_text("# Outbox\n\n", encoding="utf-8")
     if not tasks.exists():
-        tasks.write_text("- [ ] tarefa inicial\n", encoding="utf-8")
-
-
-def bootstrap(root: Path = ROOT) -> tuple[bool, bool, bool, bool, bool, bool]:
-    created_config = ensure_config_from_example(root)
-
-    workspace_dir = root / "workspace"
-    logs_dir = workspace_dir / "logs"
-    memory_dir = workspace_dir / "memory"
-    inbox = workspace_dir / "inbox.md"
-    outbox = workspace_dir / "outbox.md"
-    tasks = workspace_dir / "tasks.md"
-
-    had_workspace = workspace_dir.exists()
-    had_logs = logs_dir.exists()
-    had_memory = memory_dir.exists()
-    had_inbox = inbox.exists()
-    had_outbox = outbox.exists()
-    had_tasks = tasks.exists()
-
-    ensure_workspace_files(root)
-
-    return (
-        created_config,
-        not had_workspace and workspace_dir.exists(),
-        not had_logs and logs_dir.exists(),
-        not had_memory and memory_dir.exists(),
-        not had_inbox and inbox.exists(),
-        not had_outbox and outbox.exists() and (not had_tasks and tasks.exists()),
-    )
+        tasks.write_text("- [ ] initial task\n", encoding="utf-8")
 
 
 def main() -> None:

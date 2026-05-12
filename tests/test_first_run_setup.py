@@ -74,7 +74,7 @@ class FirstRunSetupTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            payload = "## fake\\n```text\\nhello\\n```\\n<script>x</script>"
+            payload = "## fake\n```text\nhello\n```\n<script>x</script>"
             message_id = append_message(content=payload, root=root)
 
             inbox_raw = (root / "workspace/inbox.md").read_text(encoding="utf-8")
