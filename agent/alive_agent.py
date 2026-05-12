@@ -394,7 +394,7 @@ class AliveAgent:
     def _build_responder_context(self, loaded_topics: dict[str, str] | None = None) -> dict:
         pending_tasks = self.task_manager.get_pending_tasks(limit=10)
         inbox_pending = self.interaction.pending_count() if self.interaction else 0
-        ctx: dict = {
+        responder_context: dict = {
             "tick_type": TickType.INTERACTIVE.value,
             "pending_tasks": pending_tasks,
             "inbox_pending": inbox_pending,
@@ -402,8 +402,8 @@ class AliveAgent:
             "memory_summary": self.short_memory.summary,
         }
         if loaded_topics is not None:
-            ctx["loaded_topics"] = loaded_topics
-        return ctx
+            responder_context["loaded_topics"] = loaded_topics
+        return responder_context
 
     def _run_maintenance_tick(self) -> None:
         self.last_tick_type = TickType.MAINTENANCE

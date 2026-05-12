@@ -307,6 +307,10 @@ class InteractionContextBuilder:
 def should_record_interaction(message: str, response: str) -> bool:  # noqa: ARG001
     """Conservative heuristic: return True only for messages worth remembering.
 
+    The ``response`` parameter is accepted for API symmetry and reserved for
+    future use (e.g., response-length or sentiment signals); it is not used
+    in the current implementation.
+
     Trivial greetings, single-word acknowledgements, and very short messages
     are rejected.  Messages containing preference keywords or that are
     substantively long are accepted.

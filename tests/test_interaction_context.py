@@ -257,14 +257,14 @@ class ResponderContextBuilderIntegrationTests(unittest.TestCase):
     def test_ask_uses_interaction_context_builder(self) -> None:
         responder, mock_llm, builder = self._make_responder_with_builder()
         with patch.object(builder, "build_for_message", wraps=builder.build_for_message) as spy:
-            responder.respond("ask", "me explique sua arquitetura")
-            spy.assert_called_once()
+            responder.respond("ask", "me explique sua arquitetura", {"tick_type": "interactive"})
+            spy.assert_called_once_with("me explique sua arquitetura", {"tick_type": "interactive"})
 
     def test_complex_bare_question_uses_context_builder(self) -> None:
         responder, mock_llm, builder = self._make_responder_with_builder()
         with patch.object(builder, "build_for_message", wraps=builder.build_for_message) as spy:
-            responder.respond("message", "me explique sua arquitetura")
-            spy.assert_called_once()
+            responder.respond("message", "me explique sua arquitetura", {"tick_type": "interactive"})
+            spy.assert_called_once_with("me explique sua arquitetura", {"tick_type": "interactive"})
 
     def test_greeting_does_not_invoke_context_builder(self) -> None:
         responder, mock_llm, builder = self._make_responder_with_builder()
