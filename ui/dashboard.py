@@ -36,6 +36,10 @@ chat_tab, runtime_tab, tasks_tab, memory_tab, io_tab, logs_tab, controls_tab = s
 
 with chat_tab:
     st.subheader("Chat")
+    st.caption(
+        "Examples: `olá` · `@status` · `@ask me explique sua arquitetura`"
+        " · `@task revisar memória` · `@note prefiro respostas curtas`"
+    )
     st.text_area("Message", key="chat_input", height=120)
     send_col, send_tick_col = st.columns(2)
 

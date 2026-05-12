@@ -31,7 +31,9 @@ class InteractionManager:
             payload = first_line.replace("@note", "", 1).strip()
             payload = payload or remainder.strip()
             return "note", payload
-        return "ask", stripped
+        if first_line.startswith("@status"):
+            return "status", ""
+        return "message", stripped
 
     def append_user_message(
         self,
