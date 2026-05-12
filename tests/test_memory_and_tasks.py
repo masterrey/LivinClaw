@@ -308,7 +308,7 @@ class AliveAgentDuplicateTaskTests(unittest.TestCase):
             root = Path(tmp)
             tasks_file = root / "workspace" / "tasks.md"
             tasks_file.parent.mkdir(parents=True, exist_ok=True)
-            tasks_file.write_text("- [ ] tarefa A\n", encoding="utf-8")
+            tasks_file.write_text("- [ ] task A\n", encoding="utf-8")
 
             config = {
                 "agent": {
@@ -344,12 +344,12 @@ class AliveAgentDuplicateTaskTests(unittest.TestCase):
             }
 
             agent = AliveAgent(config=config, root_dir=root)
-            agent.anti_degen.record_task("tarefa A")
+            agent.anti_degen.record_task("task A")
 
             agent.tick()
 
             content = tasks_file.read_text(encoding="utf-8")
-            self.assertIn("- [x] tarefa A — duplicate suppressed", content)
+            self.assertIn("- [x] task A — duplicate suppressed", content)
             self.assertEqual([], agent.task_manager.get_pending_tasks())
 
 

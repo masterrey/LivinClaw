@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 # memory/topic_classifier.py
-# Keyword-based topic classifier.  Maps text snippets to the most relevant
-# topic branch.  Designed to be replaced with an LLM-backed version later.
+# Keyword-based topic classifier. Maps text snippets to the most relevant
+# topic branch. Designed to be replaced with an LLM-backed version later.
 
 import re
 

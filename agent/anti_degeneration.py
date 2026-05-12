@@ -17,7 +17,8 @@ from collections import deque
 # Minimum Jaccard similarity to consider two texts "too similar".
 # 0.75 is a practical default that still catches near-duplicates while allowing
 # moderate paraphrasing; to tune this, raise it to be stricter or lower it to be
-# more permissive, and later move it into config.yaml if runtime tuning is needed.
+# more permissive. Runtime config.yaml tuning is not implemented yet and would
+# require a follow-up code change to load this threshold from configuration.
 SIMILARITY_THRESHOLD = 0.75
 
 # How many recent reflections to keep in the dedup window

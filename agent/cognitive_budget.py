@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, UTC
 
+# Rough prompt-size approximation; adjust if the active tokenizer differs materially.
 CHARS_PER_TOKEN = 4
 
 
