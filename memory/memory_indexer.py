@@ -8,6 +8,8 @@ import logging
 from datetime import datetime, UTC
 from pathlib import Path
 
+_logger = logging.getLogger(__name__)
+
 
 DEFAULT_TOPICS: list[dict] = [
     {
@@ -212,8 +214,7 @@ def _parse_index(content: str) -> dict[str, dict]:
                     try:
                         current["importance"] = float(value)
                     except ValueError:
-                        import logging
-                        logging.getLogger(__name__).debug(
+                        _logger.debug(
                             "Invalid importance value '%s' for topic '%s', using default 0.5",
                             value,
                             current.get("name", "?"),
