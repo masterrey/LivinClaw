@@ -37,9 +37,8 @@ class MemoryRouter:
         scores = self._score_topics(combined_text)
 
         # Select top-N by score; never exceed max_loaded_topics
-        top_topics = sorted(scores, key=lambda t: scores[t], reverse=True)[
-            : self.max_loaded_topics
-        ]
+        sorted_topics = sorted(scores, key=lambda t: scores[t], reverse=True)
+        top_topics = sorted_topics[: self.max_loaded_topics]
 
         self.logger.info(
             "MemoryRouter selected topics %s (scores: %s)",

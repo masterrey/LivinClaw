@@ -22,6 +22,9 @@ class GuardianReport:
     repaired_prompt: str | None = None
 
 
+_MIN_TOPIC_LIMIT = 3  # minimum branch limit when not specified in budget_status
+
+
 class GuardianLayer:
     def __init__(self, config: dict) -> None:
         self.max_guardian_tokens = int(config.get("max_guardian_tokens", 3000))
@@ -71,9 +74,10 @@ class GuardianLayer:
                 action="compress",
             )
 
-        max_topics = budget_status.get("max_loaded_topics", 3)
-        # max_loaded_topics is on the budget object; fall back to a reasonable default
-        if loaded_topic_count > max(3, max_topics):
+        max_topics = budget_status.get("max_loaded_topics", _MIN_TOPIC_LIMIT)
+        # Guard against a configured limit smaller than the absolute minimum
+        effective_limit = max(_MIN_TOPIC_LIMIT, max_topics)
+        if loaded_topic_count > effective_limit:
             self.logger.warning(
                 "Guardian: %d topic branches loaded (max %d) — recommending branch pruning",
                 loaded_topic_count,

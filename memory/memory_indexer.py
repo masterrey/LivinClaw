@@ -212,6 +212,12 @@ def _parse_index(content: str) -> dict[str, dict]:
                     try:
                         current["importance"] = float(value)
                     except ValueError:
+                        import logging
+                        logging.getLogger(__name__).debug(
+                            "Invalid importance value '%s' for topic '%s', using default 0.5",
+                            value,
+                            current.get("name", "?"),
+                        )
                         current["importance"] = 0.5
                 else:
                     current[key_norm] = value

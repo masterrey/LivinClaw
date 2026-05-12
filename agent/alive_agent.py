@@ -93,9 +93,14 @@ class AliveAgent:
     # Reflection (with cooldown and anti-degeneration)
     # ------------------------------------------------------------------
 
-    def _run_reflection(self) -> None:
+    def _is_reflection_enabled(self) -> bool:
+        """Return True if reflection is enabled according to the active config."""
         reflection_cfg = self.config.get("reflection", {})
-        if not reflection_cfg.get("enabled", self.config["agent"].get("reflection_enabled", True)):
+        agent_fallback = self.config["agent"].get("reflection_enabled", True)
+        return reflection_cfg.get("enabled", agent_fallback)
+
+    def _run_reflection(self) -> None:
+        if not self._is_reflection_enabled():
             return
 
         if not self.budget.can_reflect(self.tick_count):
