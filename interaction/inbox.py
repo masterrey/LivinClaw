@@ -9,6 +9,7 @@ from interaction.message import InteractionMessage
 
 _MESSAGE_HEADER_RE = re.compile(r"^## MSG_(\d+)$", re.MULTILINE)
 _MESSAGE_ID_RE = re.compile(r"^MSG_(\d+)$")
+_FENCE_OPEN_RE = re.compile(r"^(`{3,})(?:\S*)?$")
 
 
 def _max_run(text: str, char: str) -> int:
@@ -59,7 +60,7 @@ def _extract_blocks(raw: str) -> list[str]:
     for i, line in enumerate(lines):
         stripped = line.strip()
         if fence_delimiter is None:
-            match = re.match(r"^(`{3,})(?:\S*)?$", stripped)
+            match = _FENCE_OPEN_RE.match(stripped)
             if match:
                 fence_delimiter = match.group(1)
                 continue
@@ -94,7 +95,7 @@ def _parse_block(block: str) -> InteractionMessage | None:
         return None
 
     metadata_fence = lines[metadata_idx + 1].strip()
-    metadata_match = re.match(r"^(`{3,})(?:\S*)?$", metadata_fence)
+    metadata_match = _FENCE_OPEN_RE.match(metadata_fence)
     if metadata_match is None:
         return None
     metadata_open = metadata_match.group(1)
@@ -107,7 +108,7 @@ def _parse_block(block: str) -> InteractionMessage | None:
         return None
 
     content_fence = lines[content_idx + 1].strip()
-    content_match = re.match(r"^(`{3,})(?:\S*)?$", content_fence)
+    content_match = _FENCE_OPEN_RE.match(content_fence)
     if content_match is None:
         return None
     content_open = content_match.group(1)
