@@ -14,6 +14,10 @@ from datetime import datetime, UTC
 from memory.memory_indexer import MemoryIndexer
 from memory.topic_classifier import TOPIC_KEYWORDS
 
+_SEMANTIC_WEIGHT = 0.60
+_RECENCY_WEIGHT = 0.15
+_IMPORTANCE_WEIGHT = 0.25
+
 
 class MemoryRouter:
     """Selects and loads only the most relevant memory branches for a given context."""
@@ -93,8 +97,12 @@ class MemoryRouter:
             # Importance weight from the index
             importance = float(meta.get("importance", 0.5))
 
-            # Weighted composite
-            composite = 0.6 * semantic + 0.15 * recency + 0.25 * importance
+            # Weighted composite (semantic-first routing with lighter recency/importance boosts)
+            composite = (
+                _SEMANTIC_WEIGHT * semantic
+                + _RECENCY_WEIGHT * recency
+                + _IMPORTANCE_WEIGHT * importance
+            )
             scores[name] = round(composite, 4)
 
         return scores

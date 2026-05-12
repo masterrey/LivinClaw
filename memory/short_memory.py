@@ -14,8 +14,8 @@ from typing import Literal
 
 EntryType = Literal["action", "observation"]
 
-# Importance threshold below which entries are pruned when the cap is reached
-PRUNE_BELOW_IMPORTANCE = 0.3
+# Entries below this threshold are preferentially pruned when cap is exceeded.
+PRUNE_IMPORTANCE_THRESHOLD = 0.3
 
 # Cognitive-weight cap for weighted_entries (soft limit)
 MAX_WEIGHTED_ENTRIES = 40
@@ -81,13 +81,13 @@ class ShortMemory:
         self.weighted_entries.sort(key=lambda e: e.importance)
         excess = len(self.weighted_entries) - MAX_WEIGHTED_ENTRIES
         # Prefer to prune entries below threshold first
-        prunable = [e for e in self.weighted_entries if e.importance < PRUNE_BELOW_IMPORTANCE]
+        prunable = [e for e in self.weighted_entries if e.importance < PRUNE_IMPORTANCE_THRESHOLD]
         to_remove = prunable[:excess] if prunable else self.weighted_entries[:excess]
         for e in to_remove:
             self.weighted_entries.remove(e)
 
     # ------------------------------------------------------------------
-    # Summarise (called each tick)
+    # Summarize (called each tick)
     # ------------------------------------------------------------------
 
     def summarize(self) -> None:

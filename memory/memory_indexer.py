@@ -26,7 +26,7 @@ DEFAULT_TOPICS: list[dict] = [
     },
     {
         "name": "llm_runtime",
-        "description": "LLM runtime behaviour, failures and optimisations",
+        "description": "LLM runtime behavior, failures and optimizations",
         "path": "topics/llm_runtime/",
         "tags": ["llm", "performance", "failures"],
         "importance": 0.75,
@@ -42,7 +42,7 @@ DEFAULT_TOPICS: list[dict] = [
         "name": "user_preferences",
         "description": "User preferences and interaction patterns",
         "path": "topics/user_preferences/",
-        "tags": ["user", "preferences", "behaviour"],
+        "tags": ["user", "preferences", "behavior"],
         "importance": 0.60,
     },
     {

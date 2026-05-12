@@ -8,6 +8,8 @@ from __future__ import annotations
 import logging
 from datetime import datetime, UTC
 
+CHARS_PER_TOKEN = 4
+
 
 class CognitiveBudget:
     """Enforces configurable limits on agent cognitive resource usage."""
@@ -19,7 +21,7 @@ class CognitiveBudget:
         self.max_reflections_per_day: int = int(cfg.get("max_reflections_per_day", 20))
         self.reflection_cooldown_ticks: int = int(cfg.get("reflection_cooldown_ticks", 3))
         self.max_compactions_per_hour: int = int(cfg.get("max_compactions_per_hour", 2))
-        self.max_prompt_chars: int = int(cfg.get("max_tokens_per_tick", 12000)) * 4  # ~4 chars/token
+        self.max_prompt_chars: int = int(cfg.get("max_tokens_per_tick", 12000)) * CHARS_PER_TOKEN
 
         self._tokens_this_tick: int = 0
         self._reflections_today: int = 0

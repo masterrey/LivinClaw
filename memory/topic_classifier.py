@@ -25,7 +25,7 @@ TOPIC_KEYWORDS: dict[str, list[str]] = {
         "budget", "overflow", "check", "homeostasis", "protect",
     ],
     "user_preferences": [
-        "user", "prefer", "setting", "option", "configure", "behaviour",
+        "user", "prefer", "setting", "option", "configure", "behavior",
         "style", "format", "language",
     ],
     "reflections": [
@@ -58,7 +58,7 @@ class TopicClassifier:
 
         if not scores:
             return DEFAULT_TOPIC
-        return max(scores, key=lambda t: scores[t])
+        return max(scores, key=scores.__getitem__)
 
     def classify_with_file(self, text: str) -> tuple[str, str]:
         """Return (topic_name, suggested_filename) for the given text."""

@@ -275,6 +275,30 @@ class PlannerAndReflectionContextWiringTests(unittest.TestCase):
         )
         self.assertIn("com contexto roteado", text)
 
+    def test_reflection_llm_prompt_includes_routed_context(self) -> None:
+        from agent.reflection import ReflectionEngine
+
+        class FakeLLMClient:
+            def __init__(self) -> None:
+                self.messages: list[dict] = []
+
+            def chat(self, messages):
+                self.messages = messages
+                return "ok"
+
+        llm = FakeLLMClient()
+        reflection = ReflectionEngine(llm_client=llm)
+        routed_context = "## Relevant Memory\nmcp decision x"
+        reflection.reflect(
+            short_summary="summary",
+            recent_actions=["a1"],
+            recent_observations=["o1"],
+            routed_context=routed_context,
+        )
+        self.assertTrue(llm.messages)
+        user_prompt = llm.messages[1]["content"]
+        self.assertIn(routed_context, user_prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

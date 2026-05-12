@@ -13,7 +13,7 @@ from agent.cognitive_budget import CognitiveBudget
 from guardian.token_estimator import TokenEstimator
 
 
-# Character budget fractions (must sum to ≤ 1.0 — remainder is safety margin)
+# Character budget fractions sum to 0.85, leaving a 0.15 safety margin.
 _SHORT_MEM_FRACTION = 0.20
 _TOPIC_FRACTION = 0.50
 _TASK_FRACTION = 0.15
