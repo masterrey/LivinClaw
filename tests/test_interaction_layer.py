@@ -141,6 +141,26 @@ class InteractiveTickTests(unittest.TestCase):
                 agent.tick_lock.release()
             self.assertEqual(0, agent.tick_count)
 
+    def test_ask_returns_state_based_response(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            tasks_file = root / "workspace/tasks.md"
+            tasks_file.parent.mkdir(parents=True, exist_ok=True)
+            tasks_file.write_text("- [ ] pending one\n", encoding="utf-8")
+
+            agent = AliveAgent(config=_base_config(), root_dir=root)
+            assert agent.interaction is not None
+            agent.short_memory.summary = "short summary for ask"
+            agent.interaction.append_user_message("@ask What's current status?")
+
+            agent.tick(reason=TickType.INTERACTIVE)
+
+            outbox_content = (root / "workspace/outbox.md").read_text(encoding="utf-8")
+            self.assertIn("Estado atual do runtime", outbox_content)
+            self.assertIn("tarefas_pendentes: pending one", outbox_content)
+            self.assertIn("resumo_memoria_curta: short summary for ask", outbox_content)
+            self.assertIn("ultimo_tick: interactive", outbox_content)
+
 
 if __name__ == "__main__":
     unittest.main()

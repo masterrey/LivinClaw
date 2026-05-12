@@ -55,6 +55,7 @@ class AliveAgent:
         self.logger = logging.getLogger(__name__)
         self.tick_count = 0
         self.tick_lock = threading.Lock()
+        self.last_tick_type: TickType | None = None
 
         tasks_path = root_dir / config["paths"]["tasks"]
         memory_dir = root_dir / config["paths"]["memory_dir"]
@@ -219,6 +220,7 @@ class AliveAgent:
             self.tick_lock.release()
 
     def _run_scheduled_tick(self) -> None:
+        self.last_tick_type = TickType.SCHEDULED
         self.tick_count += 1
         self.logger.info("Tick #%s started (%s)", self.tick_count, TickType.SCHEDULED.value)
         self.budget.new_tick(self.tick_count)
@@ -277,6 +279,7 @@ class AliveAgent:
         self.logger.info("Tick #%s finished (%s)", self.tick_count, TickType.SCHEDULED.value)
 
     def _run_interactive_tick(self) -> None:
+        self.last_tick_type = TickType.INTERACTIVE
         self.tick_count += 1
         self.logger.info("Tick #%s started (%s)", self.tick_count, TickType.INTERACTIVE.value)
         self.budget.new_tick(self.tick_count)
@@ -363,9 +366,26 @@ class AliveAgent:
             self.short_memory.add_observation(f"Nota humana: {cleaned}", importance=0.7)
             self.long_memory.append_fact(f"Nota humana registrada: {cleaned}")
             return "Nota registrada na memória de trabalho e memória longa."
+        if directive == "ask":
+            return self._build_ask_state_response(question=cleaned)
         return f"Mensagem recebida e registrada para execução no loop autônomo: {cleaned}"
 
+    def _build_ask_state_response(self, question: str) -> str:
+        pending = self.task_manager.get_pending_tasks(limit=3)
+        pending_text = ", ".join(pending) if pending else "nenhuma"
+        last_tick = self.last_tick_type.value if self.last_tick_type else "none"
+        summary = self.short_memory.summary
+        return (
+            "Estado atual do runtime:\n"
+            f"- pergunta: {question}\n"
+            f"- tick_atual: {TickType.INTERACTIVE.value}\n"
+            f"- ultimo_tick: {last_tick}\n"
+            f"- tarefas_pendentes: {pending_text}\n"
+            f"- resumo_memoria_curta: {summary}"
+        )
+
     def _run_maintenance_tick(self) -> None:
+        self.last_tick_type = TickType.MAINTENANCE
         self.tick_count += 1
         self.logger.info("Tick #%s started (%s)", self.tick_count, TickType.MAINTENANCE.value)
         self.budget.new_tick(self.tick_count)
@@ -374,6 +394,7 @@ class AliveAgent:
         self.logger.info("Tick #%s finished (%s)", self.tick_count, TickType.MAINTENANCE.value)
 
     def _run_recovery_tick(self) -> None:
+        self.last_tick_type = TickType.RECOVERY
         self.tick_count += 1
         self.logger.info("Tick #%s started (%s)", self.tick_count, TickType.RECOVERY.value)
         self.budget.new_tick(self.tick_count)
