@@ -18,86 +18,117 @@ st.set_page_config(page_title="LivinClaw Dashboard", layout="wide")
 
 st.title("LivinClaw — Local Alive Agent Dashboard")
 st.caption("A local autonomous runtime with inbox/outbox, ticks, tasks, and persistent memory.")
-st.info("Type a message and click 'Queue Message' or 'Send + Interactive Tick'.")
 st.warning(
     "The dashboard does not call the LLM directly. It sends messages through Inbox and processes them through the runtime tick."
 )
 
-if "chat_input" not in st.session_state:
-    st.session_state["chat_input"] = ""
-if "latest_response" not in st.session_state:
-    st.session_state["latest_response"] = ""
-if "latest_response_notice" not in st.session_state:
-    st.session_state["latest_response_notice"] = "Not available yet"
+if "current_draft_message" not in st.session_state:
+    st.session_state["current_draft_message"] = ""
+if "last_sent_message_id" not in st.session_state:
+    st.session_state["last_sent_message_id"] = None
+if "last_action_status" not in st.session_state:
+    st.session_state["last_action_status"] = {"level": "info", "text": "Not available yet", "details": None}
 
 chat_tab, runtime_tab, tasks_tab, memory_tab, io_tab, logs_tab, controls_tab = st.tabs(
     ["Chat", "Runtime", "Tasks", "Memory", "Inbox / Outbox", "Logs", "Controls"]
 )
 
 with chat_tab:
-    st.subheader("Chat")
+    rerun = getattr(st, "rerun", getattr(st, "experimental_rerun", None))
+    can_rerun = callable(rerun)
+    st.subheader("LivinClaw Chat")
     st.caption(
-        "Examples: `olá` · `@status` · `@ask me explique sua arquitetura`"
-        " · `@task revisar memória` · `@note prefiro respostas curtas`"
+        "Talk to the alive agent. Messages go through Inbox → Interactive Tick → Managed Context → Outbox."
     )
-    st.text_area("Message", key="chat_input", height=120)
-    send_col, send_tick_col = st.columns(2)
 
-    if send_col.button("Queue Message"):
-        ok, message = actions.append_user_message(st.session_state["chat_input"], root=ROOT)
+    runtime_snapshot = readers.read_runtime_snapshot(ROOT)
+    components.render_chat_status_strip(st, runtime_snapshot)
+
+    transcript_data = readers.read_chat_transcript(ROOT, limit=30)
+    if transcript_data["error"]:
+        st.warning(transcript_data["error"])
+    if transcript_data["warning"]:
+        st.warning(transcript_data["warning"])
+    components.render_chat_transcript(st, transcript_data["messages"])
+
+    status_info = st.session_state.get("last_action_status", {})
+    status_level = status_info.get("level")
+    status_text = status_info.get("text")
+    if status_text:
+        if status_level == "success":
+            st.success(status_text)
+        elif status_level == "warning":
+            st.warning(status_text)
+        elif status_level == "error":
+            st.error(status_text)
+        else:
+            st.info(status_text)
+
+    st.text_area(
+        "Type your message",
+        key="current_draft_message",
+        height=90,
+        placeholder="Message LivinClaw...",
+        label_visibility="collapsed",
+    )
+    if st.button("Send message", type="primary"):
+        ok, result = actions.send_message_and_run_tick(st.session_state["current_draft_message"], root=ROOT)
+        st.session_state["last_sent_message_id"] = result.get("message_id")
+        st.session_state["current_draft_message"] = ""
         if ok:
-            st.success(f"Message queued in Inbox ({message}).")
+            status_level = "success"
+        elif result.get("tick_ok"):
+            status_level = "warning"
         else:
-            st.error(message)
+            status_level = "error"
 
-    if send_tick_col.button("Send + Interactive Tick"):
-        latest_before, latest_before_error = actions.read_latest_outbox_message(root=ROOT)
-        if latest_before_error:
-            st.error(latest_before_error)
-        previous_latest_id = latest_before.id if latest_before else None
-        st.session_state["latest_response"] = ""
-        st.session_state["latest_response_notice"] = "Not available yet"
-
-        ok, message = actions.append_user_message(st.session_state["chat_input"], root=ROOT)
-        if not ok:
-            st.error(message)
+        if result.get("response_found"):
+            status_text = "Message sent and response received."
+        elif result.get("tick_ok"):
+            status_text = "No response generated for this turn yet."
         else:
-            tick_ok, tick_message = actions.run_interactive_tick(root=ROOT)
-            if not tick_ok:
-                st.error(f"Interactive tick failed: {tick_message}")
+            status_text = "Could not run interactive tick."
+
+        st.session_state["last_action_status"] = {
+            "level": status_level,
+            "text": status_text,
+            "details": result,
+        }
+        if can_rerun:
+            rerun()
+
+    with st.expander("Advanced"):
+        if st.button("Queue without running tick"):
+            ok, message = actions.append_user_message(st.session_state["current_draft_message"], root=ROOT)
+            if ok:
+                st.session_state["last_sent_message_id"] = message
+                st.session_state["current_draft_message"] = ""
+                st.session_state["last_action_status"] = {
+                    "level": "warning",
+                    "text": "Message queued, but the runtime did not produce a response.",
+                    "details": {"message_id": message},
+                }
+                if can_rerun:
+                    rerun()
             else:
-                latest, has_new_response, error = actions.read_new_outbox_response(
-                    previous_message_id=previous_latest_id,
-                    root=ROOT,
-                )
-                if error:
-                    st.error(error)
-                elif not has_new_response:
-                    st.session_state["latest_response_notice"] = "No new response generated for this turn."
-                    st.success("Interactive tick executed.")
-                else:
-                    st.session_state["latest_response"] = latest
-                    st.session_state["latest_response_notice"] = ""
-                    st.success("Interactive tick executed.")
+                st.session_state["last_action_status"] = {"level": "error", "text": message, "details": None}
+                if can_rerun:
+                    rerun()
 
-    st.subheader("Latest response")
-    latest = st.session_state.get("latest_response", "")
-    if latest:
-        st.write(latest)
-    else:
-        st.info(st.session_state.get("latest_response_notice", "Not available yet"))
+    with st.expander("Try examples"):
+        st.markdown("- olá")
+        st.markdown("- me explique sua arquitetura")
+        st.markdown("- o que você lembra sobre este projeto?")
+        st.markdown("- @status")
+        st.markdown("- @task revisar memória")
+        st.markdown("- @note prefiro respostas diretas")
 
-    io_data = readers.read_inbox_outbox(ROOT)
-    if io_data["inbox"]["warning"]:
-        st.warning(io_data["inbox"]["warning"])
-    if io_data["outbox"]["warning"]:
-        st.warning(io_data["outbox"]["warning"])
+    components.render_managed_context_panel(st, runtime_snapshot)
 
-    recent_col1, recent_col2 = st.columns(2)
-    with recent_col1:
-        components.render_message_cards(st, io_data["inbox"]["messages"], "Recent inbox messages")
-    with recent_col2:
-        components.render_message_cards(st, io_data["outbox"]["messages"], "Recent outbox messages")
+    details = st.session_state.get("last_action_status", {}).get("details")
+    if details:
+        with st.expander("Last action details"):
+            st.json(details)
 
 with runtime_tab:
     st.subheader("Runtime")
