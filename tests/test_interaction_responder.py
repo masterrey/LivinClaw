@@ -109,6 +109,16 @@ class ClassificationTests(unittest.TestCase):
         result = r._classify_message("quero organizar uma tarefa")
         self.assertEqual("freeform", result)
 
+    def test_previous_topics_question_classification(self) -> None:
+        r = _make_responder()
+        result = r._classify_message("quais foram os assuntos anteriores que conversamos?")
+        self.assertEqual("complex", result)
+
+    def test_previous_topics_question_classification_english(self) -> None:
+        r = _make_responder()
+        result = r._classify_message("can you recap our previous topics?")
+        self.assertEqual("complex", result)
+
     def test_portuguese_detection_true(self) -> None:
         r = _make_responder()
         self.assertTrue(r._is_portuguese("olá como vai você"))
@@ -226,6 +236,14 @@ class ConversationalResponseTests(unittest.TestCase):
         r = _make_responder(llm_client=mock_llm)
         response = r.respond("ask", "explain your architecture")
         self.assertIn("could not reach", response)
+
+    def test_history_question_without_ask_routes_to_llm(self) -> None:
+        mock_llm = MagicMock()
+        mock_llm.chat.return_value = "Falamos sobre memória e tarefas."
+        r = _make_responder(llm_client=mock_llm)
+        response = r.respond("message", "do que falamos antes?")
+        mock_llm.chat.assert_called_once()
+        self.assertEqual("Falamos sobre memória e tarefas.", response)
 
 
 # ---------------------------------------------------------------------------
