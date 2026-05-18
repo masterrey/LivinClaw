@@ -261,6 +261,10 @@ class InteractionResponder:
             re.compile(r"\b(qual\s+a\s+diferença|what.s\s+the\s+difference)\b", re.IGNORECASE),
             re.compile(r"\b(o\s+que\s+você\s+lembra|what\s+do\s+you\s+remember)\b", re.IGNORECASE),
             re.compile(r"\b(como\s+você\s+funciona|how\s+do\s+you\s+work)\b", re.IGNORECASE),
+            re.compile(r"\b(assuntos?\s+anteriores?|conversas?\s+anteriores?)\b", re.IGNORECASE),
+            re.compile(r"\b(do\s+que\s+falamos\s+antes|sobre\s+o\s+que\s+falamos)\b", re.IGNORECASE),
+            re.compile(r"\b(você\s+lembra\s+da\s+conversa\s+anterior|voce\s+lembra\s+da\s+conversa\s+anterior)\b", re.IGNORECASE),
+            re.compile(r"\b(what\s+did\s+we\s+talk\s+about|previous\s+topics?|earlier\s+conversation)\b", re.IGNORECASE),
         ]
         return any(p.search(lower) for p in complex_patterns)
 
