@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 
 GREETING_WORDS: frozenset[str] = frozenset(
     {
@@ -216,6 +217,12 @@ class InteractionResponder:
     # ------------------------------------------------------------------
 
     @staticmethod
+    def _normalize_for_match(content: str) -> str:
+        lower = content.strip().lower()
+        normalized = unicodedata.normalize("NFD", lower)
+        return "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+
+    @staticmethod
     def _is_portuguese(content: str) -> bool:
         tokens = set(re.split(r"\W+", content.lower()))
         return bool(tokens & _PORTUGUESE_MARKERS)
@@ -252,21 +259,21 @@ class InteractionResponder:
 
         These should be routed to the managed conversational path even without @ask.
         """
-        lower = content.strip().lower()
+        normalized = InteractionResponder._normalize_for_match(content)
         complex_patterns = [
             re.compile(r"\b(explain|explique|me explique)\b", re.IGNORECASE),
-            re.compile(r"\b(how|como)\s+(do\s+you|you|você|voce)\b", re.IGNORECASE),
-            re.compile(r"\b(what\s+can\s+you|o\s+que\s+você\s+pode)\b", re.IGNORECASE),
+            re.compile(r"\b(how|como)\s+(do\s+you|you|voce)\b", re.IGNORECASE),
+            re.compile(r"\b(what\s+can\s+you|o\s+que\s+voce\s+pode)\b", re.IGNORECASE),
             re.compile(r"\b(arquitetura|architecture|funciona|work)\b", re.IGNORECASE),
-            re.compile(r"\b(qual\s+a\s+diferença|what.s\s+the\s+difference)\b", re.IGNORECASE),
-            re.compile(r"\b(o\s+que\s+você\s+lembra|what\s+do\s+you\s+remember)\b", re.IGNORECASE),
-            re.compile(r"\b(como\s+você\s+funciona|how\s+do\s+you\s+work)\b", re.IGNORECASE),
+            re.compile(r"\b(qual\s+a\s+diferenca|what.s\s+the\s+difference)\b", re.IGNORECASE),
+            re.compile(r"\b(o\s+que\s+voce\s+lembra|what\s+do\s+you\s+remember)\b", re.IGNORECASE),
+            re.compile(r"\b(como\s+voce\s+funciona|how\s+do\s+you\s+work)\b", re.IGNORECASE),
             re.compile(r"\b(assuntos?\s+anteriores?|conversas?\s+anteriores?)\b", re.IGNORECASE),
             re.compile(r"\b(do\s+que\s+falamos\s+antes|sobre\s+o\s+que\s+falamos)\b", re.IGNORECASE),
-            re.compile(r"\b(voc[eê]\s+lembra\s+da\s+conversa\s+anterior)\b", re.IGNORECASE),
+            re.compile(r"\b(voce\s+lembra\s+da\s+conversa\s+anterior)\b", re.IGNORECASE),
             re.compile(r"\b(what\s+did\s+we\s+talk\s+about|previous\s+topics?|earlier\s+conversation)\b", re.IGNORECASE),
         ]
-        return any(p.search(lower) for p in complex_patterns)
+        return any(p.search(normalized) for p in complex_patterns)
 
     # ------------------------------------------------------------------
     # Response builders

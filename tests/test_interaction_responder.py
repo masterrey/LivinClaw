@@ -114,6 +114,11 @@ class ClassificationTests(unittest.TestCase):
         result = r._classify_message("quais foram os assuntos anteriores que conversamos?")
         self.assertEqual("complex", result)
 
+    def test_previous_topics_question_classification_english(self) -> None:
+        r = _make_responder()
+        result = r._classify_message("can you recap our previous topics?")
+        self.assertEqual("complex", result)
+
     def test_portuguese_detection_true(self) -> None:
         r = _make_responder()
         self.assertTrue(r._is_portuguese("olá como vai você"))
